@@ -58,7 +58,7 @@ export default function DashboardPage() {
               isVisible ? "opacity-100 translate-y-0" : "opacity-0 translate-y-4"
             }`}
           >
-            Paste a public GitHub URL to analyze your startup and open a prediction market.
+            Paste a public GitHub URL to analyze any startup and open a prediction market.
           </p>
 
           {/* Input section */}
@@ -70,7 +70,7 @@ export default function DashboardPage() {
             <div className="flex gap-0 max-w-xl border border-foreground/20 overflow-hidden focus-within:border-foreground/50 transition-all duration-300 hover:border-foreground/30 bg-background/80 backdrop-blur-sm">
               <input
                 className="flex-1 bg-transparent px-4 py-3 text-sm focus:outline-none placeholder-muted-foreground"
-                placeholder="https://github.com/your-org/your-repo"
+                placeholder="https://github.com/any-startup/any-repo"
                 value={githubUrl}
                 onChange={(e) => setGithubUrl(e.target.value)}
                 onKeyDown={(e) => e.key === "Enter" && handleAnalyze()}
