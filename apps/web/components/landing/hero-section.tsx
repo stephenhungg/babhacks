@@ -114,19 +114,26 @@ export function HeroSection() {
           
           {/* CTAs */}
           <div
-            className={`transition-all duration-700 delay-300 ${
+            className={`flex flex-col sm:flex-row items-start gap-4 transition-all duration-700 delay-300 ${
               isVisible ? "opacity-100 translate-y-0" : "opacity-0 translate-y-4"
             }`}
           >
             <Button
               size="lg"
-              className="bg-foreground hover:bg-foreground/90 text-background w-1/2 h-14 text-base rounded-full group justify-center"
+              className="bg-foreground hover:bg-foreground/90 text-background px-8 h-14 text-base rounded-full group"
               asChild
             >
               <Link href="/dashboard">
                 Start a round
                 <ArrowRight className="w-4 h-4 ml-2 transition-transform group-hover:translate-x-1" />
               </Link>
+            </Button>
+            <Button
+              size="lg"
+              variant="outline"
+              className="h-14 px-8 text-base rounded-full border-foreground/20 hover:bg-foreground/5"
+            >
+              Watch demo
             </Button>
           </div>
         </div>
