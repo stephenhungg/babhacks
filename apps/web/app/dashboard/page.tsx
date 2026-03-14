@@ -2,28 +2,42 @@
 
 import { useState, useEffect } from "react";
 import { useRouter } from "next/navigation";
-import { ArrowRight } from "lucide-react";
+import { ArrowRight, Loader2 } from "lucide-react";
 import Link from "next/link";
 import { DashboardNav } from "@/components/dashboard/nav";
 import { AnimatedSphere } from "@/components/landing/animated-sphere";
-import { STARTUPS, fmt } from "@/lib/mock-data";
+import { getMarkets } from "@/lib/api";
+import type { ValuationMarket } from "@/lib/api-types";
+
+function fmt(n: number): string {
+  if (n >= 1000) return `$${(n / 1000).toFixed(0)}B`;
+  if (n >= 1) return `$${n.toFixed(1)}M`;
+  return `$${(n * 1000).toFixed(0)}K`;
+}
+
+function repoName(githubUrl: string): string {
+  const parts = githubUrl.replace(/^https?:\/\/github\.com\//, "").split("/");
+  return parts[1] || parts[0];
+}
 
 export default function DashboardPage() {
   const [githubUrl, setGithubUrl] = useState("");
   const [isVisible, setIsVisible] = useState(false);
+  const [markets, setMarkets] = useState<ValuationMarket[]>([]);
+  const [loading, setLoading] = useState(true);
   const router = useRouter();
 
   useEffect(() => {
     setIsVisible(true);
+    getMarkets()
+      .then(setMarkets)
+      .catch(() => setMarkets([]))
+      .finally(() => setLoading(false));
   }, []);
 
   function handleAnalyze() {
     if (!githubUrl.trim()) return;
-    const normalized = githubUrl.trim().replace(/^https?:\/\//, "").replace(/\/$/, "").toLowerCase();
-    const match = STARTUPS.find(
-      (s) => s.github.toLowerCase().replace(/^https?:\/\//, "").replace(/\/$/, "") === normalized
-    );
-    router.push(match ? `/market/${match.id}` : `/list?github=${encodeURIComponent(githubUrl.trim())}`);
+    router.push(`/list?github=${encodeURIComponent(githubUrl.trim())}`);
   }
 
   return (
@@ -86,60 +100,74 @@ export default function DashboardPage() {
               <span className="text-xs font-mono text-muted-foreground">Open markets</span>
             </div>
 
-            <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
-              {STARTUPS.map((s) => (
-                <Link
-                  key={s.id}
-                  href={`/market/${s.id}`}
-                  className="group border border-foreground/10 hover:border-foreground/30 transition-all duration-300 p-5 bg-background"
-                >
-                  {/* Header */}
-                  <div className="flex items-start justify-between mb-3">
-                    <div>
-                      <h3 className="font-display text-base">{s.name}</h3>
-                      <span className="text-xs font-mono text-muted-foreground">{s.stage}</span>
+            {loading ? (
+              <div className="flex items-center justify-center py-16">
+                <Loader2 className="w-6 h-6 text-muted-foreground animate-spin" />
+              </div>
+            ) : markets.length === 0 ? (
+              <div className="border border-dashed border-foreground/20 p-12 text-center">
+                <p className="text-sm text-muted-foreground">No markets yet. Analyze a repo to get started.</p>
+              </div>
+            ) : (
+              <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
+                {markets.map((m) => (
+                  <Link
+                    key={m.id}
+                    href={`/market/${m.id}`}
+                    className="group border border-foreground/10 hover:border-foreground/30 transition-all duration-300 p-5 bg-background hover:bg-foreground/[0.02]"
+                  >
+                    {/* Header */}
+                    <div className="flex items-start justify-between mb-3">
+                      <div>
+                        <h3 className="font-display text-base">{repoName(m.githubUrl)}</h3>
+                        <span className="text-xs font-mono text-muted-foreground truncate block max-w-[160px]">
+                          {m.githubUrl.replace("https://github.com/", "")}
+                        </span>
+                      </div>
+                      <span className={`text-[10px] font-mono px-2 py-0.5 rounded-full border ${
+                        m.status === "closed"
+                          ? "border-foreground/20 text-muted-foreground"
+                          : "border-green-500/30 text-green-500"
+                      }`}>
+                        {m.status === "closed" ? "Closed" : "Live"}
+                      </span>
                     </div>
-                    <span className={`text-[10px] font-mono px-2 py-0.5 rounded-full border ${
-                      s.safeStatus === "settled"
-                        ? "border-foreground/20 text-muted-foreground"
-                        : "border-green-500/30 text-green-500"
-                    }`}>
-                      {s.safeStatus === "settled" ? "Settled" : "Live"}
-                    </span>
-                  </div>
 
-                  {/* Valuation */}
-                  <div className="mb-4">
-                    <div className="text-2xl font-display">{fmt(s.currentBet)}</div>
-                    <div className="text-xs text-muted-foreground">crowd valuation</div>
-                  </div>
+                    {/* Valuation */}
+                    <div className="mb-4">
+                      <div className="text-2xl font-display">
+                        {m.consensusValuation ? fmt(m.consensusValuation) : "—"}
+                      </div>
+                      <div className="text-xs text-muted-foreground">crowd valuation</div>
+                    </div>
 
-                  {/* Metrics */}
-                  <div className="space-y-1.5 border-t border-foreground/10 pt-3">
-                    <div className="flex justify-between text-xs">
-                      <span className="text-muted-foreground">Score</span>
-                      <span className="font-mono">{s.scores.overall}/100</span>
+                    {/* Metrics */}
+                    <div className="space-y-1.5 border-t border-foreground/10 pt-3">
+                      <div className="flex justify-between text-xs">
+                        <span className="text-muted-foreground">Bets</span>
+                        <span className="font-mono">{m.bets.length}</span>
+                      </div>
+                      <div className="flex justify-between text-xs">
+                        <span className="text-muted-foreground">Volume</span>
+                        <span className="font-mono">
+                          ${m.bets.reduce((sum, b) => sum + b.amount, 0).toLocaleString()}
+                        </span>
+                      </div>
+                      {m.agentValuation && (
+                        <div className="flex justify-between text-xs">
+                          <span className="text-muted-foreground">AI estimate</span>
+                          <span className="font-mono">{fmt(m.agentValuation)}</span>
+                        </div>
+                      )}
                     </div>
-                    <div className="flex justify-between text-xs">
-                      <span className="text-muted-foreground">Volume</span>
-                      <span className="font-mono">{fmt(s.volume)}</span>
-                    </div>
-                    <div className="flex justify-between text-xs">
-                      <span className="text-muted-foreground">Bettors</span>
-                      <span className="font-mono">{s.bettors.toLocaleString()}</span>
-                    </div>
-                    <div className="flex justify-between text-xs">
-                      <span className="text-muted-foreground">Equity</span>
-                      <span className="font-mono">{s.equityOffered}%</span>
-                    </div>
-                  </div>
 
-                  <div className="mt-3 flex items-center gap-1 text-xs text-muted-foreground group-hover:text-foreground transition-colors">
-                    View market <ArrowRight className="w-3 h-3 transition-transform group-hover:translate-x-0.5" />
-                  </div>
-                </Link>
-              ))}
-            </div>
+                    <div className="mt-3 flex items-center gap-1 text-xs text-muted-foreground group-hover:text-foreground transition-colors">
+                      View market <ArrowRight className="w-3 h-3 transition-transform group-hover:translate-x-0.5" />
+                    </div>
+                  </Link>
+                ))}
+              </div>
+            )}
           </div>
 
         </div>
