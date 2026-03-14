@@ -74,27 +74,18 @@ function ListPageInner() {
       </div>
 
       <div className="relative z-10 max-w-2xl mx-auto px-6 pt-36 pb-12">
-        {/* Breadcrumb */}
-        <div className={`flex items-center gap-2 text-sm text-muted-foreground mb-8 transition-all duration-500 ${
-          isVisible ? "opacity-100 translate-y-0" : "opacity-0 translate-y-2"
-        }`}>
-          <Link href="/" className="hover:text-foreground transition-colors">Lapis</Link>
-          <span>/</span>
-          <span className="text-foreground">List your startup</span>
-        </div>
-
         {stage === "form" && (
           <>
-            <h1 className={`text-3xl font-display mb-2 transition-all duration-500 delay-75 ${
+            <h1 className={`text-3xl font-display tracking-tight mb-2 transition-all duration-500 ${
               isVisible ? "opacity-100 translate-y-0" : "opacity-0 translate-y-4"
             }`}>List your startup</h1>
-            <p className={`text-muted-foreground mb-8 text-sm transition-all duration-500 delay-100 ${
+            <p className={`text-muted-foreground mb-8 text-sm transition-all duration-500 delay-75 ${
               isVisible ? "opacity-100 translate-y-0" : "opacity-0 translate-y-4"
             }`}>
               Submit your startup for AI analysis. The report goes live and the prediction market opens automatically.
             </p>
 
-            <form onSubmit={handleSubmit} className={`space-y-6 transition-all duration-500 delay-150 ${
+            <form onSubmit={handleSubmit} className={`space-y-6 transition-all duration-500 delay-100 ${
               isVisible ? "opacity-100 translate-y-0" : "opacity-0 translate-y-4"
             }`}>
               {/* Wallet */}

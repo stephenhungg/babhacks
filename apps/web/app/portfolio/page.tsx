@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import Link from "next/link";
 import { Wallet, TrendingUp, TrendingDown, ExternalLink, Shield, Check, Lock } from "lucide-react";
 import { DashboardNav } from "@/components/dashboard/nav";
@@ -8,19 +8,37 @@ import { PORTFOLIO_POSITIONS, PORTFOLIO_MPTS, fmt, fmtDelta } from "@/lib/mock-d
 
 export default function PortfolioPage() {
   const [connected, setConnected] = useState(false);
+  const [isVisible, setIsVisible] = useState(false);
+
+  useEffect(() => {
+    setIsVisible(true);
+  }, []);
 
   const totalPnl = PORTFOLIO_POSITIONS.reduce((acc, p) => acc + p.pnl * p.betAmount / 100, 0);
   const totalBetValue = PORTFOLIO_POSITIONS.reduce((acc, p) => acc + p.betAmount, 0);
 
   return (
-    <div className="min-h-screen bg-background">
+    <div className="min-h-screen bg-background relative overflow-hidden">
       <DashboardNav />
 
-      <div className="max-w-5xl mx-auto px-6 pt-36 pb-8">
+      {/* Subtle background grid */}
+      <div className="absolute inset-0 overflow-hidden pointer-events-none opacity-[0.03]">
+        {[...Array(10)].map((_, i) => (
+          <div
+            key={`h-${i}`}
+            className="absolute h-px bg-foreground"
+            style={{ top: `${10 * (i + 1)}%`, left: 0, right: 0 }}
+          />
+        ))}
+      </div>
+
+      <div className="relative z-10 max-w-5xl mx-auto px-6 pt-36 pb-8">
         {/* Header */}
-        <div className="flex items-center justify-between mb-8">
+        <div className={`flex items-center justify-between mb-8 transition-all duration-500 ${
+          isVisible ? "opacity-100 translate-y-0" : "opacity-0 translate-y-4"
+        }`}>
           <div>
-            <h1 className="text-3xl font-display mb-1">Portfolio</h1>
+            <h1 className="text-3xl font-display tracking-tight mb-2">Portfolio</h1>
             <p className="text-sm text-muted-foreground">Your prediction positions, SAFE MPTs, and investor credentials</p>
           </div>
           <button
@@ -37,7 +55,9 @@ export default function PortfolioPage() {
         </div>
 
         {!connected ? (
-          <div className="border border-dashed border-foreground/20 p-16 text-center">
+          <div className={`border border-dashed border-foreground/20 p-16 text-center transition-all duration-500 delay-100 ${
+            isVisible ? "opacity-100 translate-y-0" : "opacity-0 translate-y-4"
+          }`}>
             <Wallet className="w-10 h-10 text-muted-foreground mx-auto mb-4" />
             <h2 className="text-xl font-display mb-2">Connect your XRPL wallet</h2>
             <p className="text-sm text-muted-foreground mb-6 max-w-sm mx-auto">
@@ -45,13 +65,15 @@ export default function PortfolioPage() {
             </p>
             <button
               onClick={() => setConnected(true)}
-              className="px-8 py-2.5 bg-foreground text-background text-sm font-semibold hover:bg-foreground/90 transition-colors"
+              className="px-8 py-2.5 bg-foreground text-background text-sm font-semibold hover:bg-foreground/90 transition-all"
             >
               Connect XRPL wallet
             </button>
           </div>
         ) : (
-          <div className="space-y-8">
+          <div className={`space-y-8 transition-all duration-500 delay-100 ${
+            isVisible ? "opacity-100 translate-y-0" : "opacity-0 translate-y-4"
+          }`}>
             {/* Summary stats */}
             <div className="grid sm:grid-cols-4 gap-4">
               {[
@@ -59,8 +81,8 @@ export default function PortfolioPage() {
                 { label: "Unrealized P&L", value: `${totalPnl >= 0 ? "+" : ""}$${totalPnl.toFixed(2)}` },
                 { label: "Active bets", value: PORTFOLIO_POSITIONS.filter(p => p.status === "active").length.toString() },
                 { label: "SAFE tokens held", value: PORTFOLIO_MPTS.reduce((a, m) => a + m.tokensHeld, 0).toString() },
-              ].map((stat) => (
-                <div key={stat.label} className="border border-foreground/10 p-4">
+              ].map((stat, i) => (
+                <div key={stat.label} className="border border-foreground/10 p-4 hover:border-foreground/20 transition-all hover:-translate-y-0.5">
                   <p className="text-xs text-muted-foreground mb-1">{stat.label}</p>
                   <p className={`text-2xl font-display ${
                     stat.label === "Unrealized P&L"
@@ -150,7 +172,7 @@ export default function PortfolioPage() {
               {PORTFOLIO_MPTS.length > 0 ? (
                 <div className="space-y-4">
                   {PORTFOLIO_MPTS.map((mpt) => (
-                    <div key={mpt.id} className="border border-foreground/10 p-5">
+                    <div key={mpt.id} className="border border-foreground/10 p-5 hover:border-foreground/20 transition-all">
                       <div className="flex items-start justify-between mb-4">
                         <div>
                           <div className="flex items-center gap-3 mb-1">
@@ -209,7 +231,7 @@ export default function PortfolioPage() {
                 Investor credentials
               </h2>
               <div className="grid sm:grid-cols-2 gap-4">
-                <div className="border border-green-200 bg-green-50/50 p-4">
+                <div className="border border-green-200 bg-green-50/50 p-4 hover:bg-green-50 transition-all">
                   <div className="flex items-center gap-2 mb-2">
                     <Shield className="w-4 h-4 text-green-600" />
                     <span className="text-sm font-semibold text-green-700">Verified Participant</span>
@@ -219,7 +241,7 @@ export default function PortfolioPage() {
                     Wallet verified via XRPL · KYC-lite check passed · Active since Jan 2025
                   </p>
                 </div>
-                <div className="border border-foreground/20 p-4">
+                <div className="border border-foreground/20 p-4 hover:border-foreground/30 transition-all">
                   <div className="flex items-center gap-2 mb-2">
                     <Shield className="w-4 h-4 text-muted-foreground" />
                     <span className="text-sm font-semibold text-muted-foreground">Accredited Investor</span>
@@ -228,8 +250,8 @@ export default function PortfolioPage() {
                   <p className="text-xs text-muted-foreground mb-2">
                     Required to participate in rounds over $500K valuation cap.
                   </p>
-                  <button className="text-xs border border-foreground/20 px-3 py-1.5 hover:bg-foreground/5 transition-colors">
-                    Start verification →
+                  <button className="text-xs border border-foreground/20 px-3 py-1.5 hover:bg-foreground/5 transition-all group">
+                    Start verification <span className="inline-block transition-transform group-hover:translate-x-0.5">→</span>
                   </button>
                 </div>
               </div>
