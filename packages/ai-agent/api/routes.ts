@@ -46,7 +46,7 @@ const GITHUB_URL_REGEX = /^https?:\/\/(www\.)?github\.com\/[\w.-]+\/[\w.-]+\/?$/
 // ==========================================
 
 // POST /analyze - submit a repo for analysis
-router.post("/analyze", (req, res) => {
+router.post("/analyze", async (req, res) => {
   const { githubUrl, twitterHandle } = req.body as AnalyzeRequest;
 
   if (!githubUrl || !GITHUB_URL_REGEX.test(githubUrl)) {
@@ -58,7 +58,7 @@ router.post("/analyze", (req, res) => {
     return;
   }
 
-  const report = createReport(githubUrl);
+  const report = await createReport(githubUrl);
 
   // fire and forget - don't await
   runAnalysisPipeline(report.id, githubUrl, twitterHandle);
@@ -357,12 +357,13 @@ router.post("/market/:marketId/settle", async (req, res) => {
     return;
   }
 
-  // close the market if still open
+  // close the market if still open, then re-fetch to get closed state
   if (market.status === "open") {
     await closeMarket(market.id);
   }
+  const settleMarketData = (await getMarketById(req.params.marketId))!;
 
-  if (!market.consensusValuation) {
+  if (!settleMarketData.consensusValuation) {
     const response: ApiResponse<never> = {
       success: false,
       error: "Market has no consensus valuation (no bets placed)",
@@ -371,7 +372,7 @@ router.post("/market/:marketId/settle", async (req, res) => {
     return;
   }
 
-  const report = await getReport(market.reportId);
+  const report = await getReport(settleMarketData.reportId);
   if (!report || report.status !== "complete" || !report.scores) {
     const response: ApiResponse<never> = {
       success: false,
@@ -393,7 +394,7 @@ router.post("/market/:marketId/settle", async (req, res) => {
 
   try {
     // ignore user-supplied config to prevent abuse (division by zero, wallet drain, etc)
-    const settlement = await settleMarket(market, report);
+    const settlement = await settleMarket(settleMarketData, report);
     res.json({ success: true, data: sanitizeSettlement(settlement) });
   } catch (err) {
     const response: ApiResponse<never> = {
@@ -556,6 +557,60 @@ router.post("/xrpl/escrow/:marketId/release", async (req, res) => {
       error: `Escrow release failed: ${(err as Error).message}`,
     };
     res.status(500).json(response);
+  }
+});
+
+// ==========================================
+// METALEX SAFE
+// ==========================================
+
+router.get("/safe/:marketId", async (req, res) => {
+  const settlement = await getSettlement(req.params.marketId);
+  if (!settlement) {
+    const response: ApiResponse<null> = {
+      success: false,
+      error: "Settlement not found",
+    };
+    res.status(404).json(response);
+    return;
+  }
+
+  if (!settlement.safe) {
+    const response: ApiResponse<null> = {
+      success: false,
+      error: "No SAFE agreement for this settlement (BASE_PRIVATE_KEY may not have been set)",
+    };
+    res.status(404).json(response);
+    return;
+  }
+
+  try {
+    // try to read live on-chain status from Base Sepolia
+    const { readSAFEStatus } = await import("@lapis/metalex");
+    const onChainStatus = await readSAFEStatus(
+      settlement.safe.contractAddress as `0x${string}`
+    );
+
+    const statusLabels = ["Proposed", "Confirmed", "Settled", "Voided"];
+
+    res.json({
+      success: true,
+      data: {
+        ...settlement.safe,
+        onChainStatus: {
+          status: statusLabels[onChainStatus.status] ?? "Unknown",
+          mptIssuanceId: onChainStatus.mptIssuanceId,
+          documentHash: onChainStatus.documentHash,
+        },
+        xrplMptIssuanceId: settlement.equityToken.mptIssuanceId,
+        crossChainVerified:
+          onChainStatus.mptIssuanceId ===
+          settlement.equityToken.mptIssuanceId,
+      },
+    });
+  } catch {
+    // fallback if Base Sepolia is unreachable
+    res.json({ success: true, data: settlement.safe });
   }
 });
 

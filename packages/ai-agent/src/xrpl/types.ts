@@ -12,6 +12,16 @@ export interface SettlementResult {
   rlusdTrustLineHash: string | null;
   settledAt: string;
   explorerLinks: string[];
+  /** MetaLEX SAFE agreement on Base Sepolia (present if BASE_PRIVATE_KEY set) */
+  safe?: {
+    contractAddress: string;
+    documentHash: string;
+    deployTxHash: string;
+    linkTxHash: string | null;
+    settleTxHash: string | null;
+    baseSepoliaExplorerUrl: string;
+    documentPreview: string;
+  };
 }
 
 export interface ParticipantEscrow {
@@ -30,6 +40,9 @@ export interface SettlementConfig {
   platformFeeBps: number; // 250 = 2.5%
   royaltyBps: number; // secondary transfer fee
   xrpUsdRate: number; // hardcoded for hackathon
+  safeDiscountRateBps: number; // SAFE discount rate
+  safeGoverningLaw: string;
+  safeDisputeResolution: string;
 }
 
 export const DEFAULT_SETTLEMENT_CONFIG: SettlementConfig = {
@@ -39,4 +52,7 @@ export const DEFAULT_SETTLEMENT_CONFIG: SettlementConfig = {
   platformFeeBps: 250,
   royaltyBps: 100,
   xrpUsdRate: 0.5,
+  safeDiscountRateBps: 2000, // 20%
+  safeGoverningLaw: "Delaware, USA",
+  safeDisputeResolution: "Arbitration - JAMS",
 };

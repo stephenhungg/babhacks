@@ -31,6 +31,8 @@ export interface StartupRound {
   totalEquityShares: string
   transferable: boolean
   royaltyBps: number
+  /** Optional extra fields merged into MPT metadata (e.g. SAFE contract address) */
+  extraMetadata?: Record<string, string>
 }
 
 export interface EquityToken {

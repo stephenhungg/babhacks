@@ -8,6 +8,7 @@ COPY package.json package-lock.json tsconfig.base.json ./
 # copy all workspace package.json files
 COPY packages/shared/package.json packages/shared/
 COPY packages/xrpl-contracts/package.json packages/xrpl-contracts/
+COPY packages/metalex/package.json packages/metalex/
 COPY packages/ai-agent/package.json packages/ai-agent/
 
 # install all dependencies (needs workspace resolution)
@@ -16,11 +17,13 @@ RUN npm ci
 # copy source code
 COPY packages/shared/ packages/shared/
 COPY packages/xrpl-contracts/ packages/xrpl-contracts/
+COPY packages/metalex/ packages/metalex/
 COPY packages/ai-agent/ packages/ai-agent/
 
-# build in dependency order: shared -> xrpl-contracts -> ai-agent
+# build in dependency order: shared -> xrpl-contracts -> metalex -> ai-agent
 RUN npm run build --workspace=packages/shared && \
     npm run build --workspace=packages/xrpl-contracts && \
+    npm run build --workspace=packages/metalex && \
     npm run build --workspace=packages/ai-agent
 
 # --- production stage ---
@@ -34,6 +37,7 @@ RUN addgroup --system appgroup && adduser --system --ingroup appgroup appuser
 COPY package.json package-lock.json ./
 COPY packages/shared/package.json packages/shared/
 COPY packages/xrpl-contracts/package.json packages/xrpl-contracts/
+COPY packages/metalex/package.json packages/metalex/
 COPY packages/ai-agent/package.json packages/ai-agent/
 
 RUN npm ci --omit=dev
@@ -41,7 +45,11 @@ RUN npm ci --omit=dev
 # copy built output
 COPY --from=base /app/packages/shared/dist packages/shared/dist
 COPY --from=base /app/packages/xrpl-contracts/dist packages/xrpl-contracts/dist
+COPY --from=base /app/packages/metalex/dist packages/metalex/dist
 COPY --from=base /app/packages/ai-agent/dist packages/ai-agent/dist
+
+# metalex needs the pre-compiled contract artifact at runtime
+COPY --from=base /app/packages/metalex/src/abi packages/metalex/src/abi
 
 USER appuser
 

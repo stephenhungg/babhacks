@@ -28,6 +28,17 @@ import type {
 } from "./types.js";
 import { DEFAULT_SETTLEMENT_CONFIG } from "./types.js";
 
+// MetaLEX SAFE integration (Base Sepolia)
+import {
+  deploySAFE,
+  linkXRPL,
+  settleSAFE,
+  generateSAFEDocument,
+  getContractExplorerUrl,
+} from "@lapis/metalex";
+import type { SAFEDeployResult, SAFELinkResult } from "@lapis/metalex";
+import { privateKeyToAccount } from "viem/accounts";
+
 // simple mutex so two settlements don't collide on XRPL sequence numbers
 let settlementLock: Promise<unknown> = Promise.resolve();
 
@@ -85,8 +96,68 @@ async function _settleMarketInner(
   );
   console.log(`[settle] valuation cap: ${valuationCapXRP} XRP`);
 
-  // step 3: issue MPT equity token
+  // step 3: deploy SAFE on Base Sepolia (non-critical)
   const companyName = extractCompanyName(report.githubUrl);
+  let safeResult: SAFEDeployResult | null = null;
+  let safeLinkResult: SAFELinkResult | null = null;
+  let safeSettleTxHash: `0x${string}` | null = null;
+  let safeDocPreview = "";
+
+  const basePrivateKey = process.env.BASE_PRIVATE_KEY as `0x${string}` | undefined;
+
+  if (basePrivateKey) {
+    try {
+      console.log(`[settle] deploying SAFE agreement on Base Sepolia...`);
+
+      const investmentAmountUSD = Math.round(
+        (consensusM * 1_000_000 * cfg.platformFeeBps) / 10_000
+      );
+      const safeDoc = generateSAFEDocument({
+        companyName,
+        valuationCapUSD: Math.round(consensusM * 1_000_000),
+        discountRateBps: cfg.safeDiscountRateBps,
+        investmentAmountUSD,
+        founderXrplAddress: founderWallet.address,
+        investorCount: market.bets.filter(
+          (b) => !b.userId.startsWith("ai-agent")
+        ).length,
+        consensusValuationM: consensusM,
+        reportSummary: report.summary ?? "AI analysis complete",
+        governingLaw: cfg.safeGoverningLaw,
+        disputeResolution: cfg.safeDisputeResolution,
+      });
+      safeDocPreview = safeDoc.text.slice(0, 200);
+
+      // agent wallet deploys the contract
+      // for hackathon, agent is also the "founder" EVM address
+      const agentEvmAddress = privateKeyToAccount(basePrivateKey).address;
+
+      safeResult = await deploySAFE(basePrivateKey, {
+        founderEvmAddress: agentEvmAddress,
+        documentHash: safeDoc.hash,
+        companyName,
+        valuationCapUSD: Math.round(consensusM * 1_000_000),
+        discountRateBps: cfg.safeDiscountRateBps,
+        investmentAmountUSD,
+        governingLaw: cfg.safeGoverningLaw,
+        disputeResolution: cfg.safeDisputeResolution,
+        investorAddresses: [],
+        xrplNetwork: process.env.XRPL_NETWORK || "testnet",
+        founderXrplAddress: founderWallet.address,
+      });
+
+      console.log(`[settle] SAFE deployed: ${safeResult.contractAddress}`);
+      explorerLinks.push(safeResult.explorerUrl);
+    } catch (err) {
+      console.warn(
+        `[settle] SAFE deployment failed (non-critical): ${(err as Error).message}`
+      );
+    }
+  } else {
+    console.log(`[settle] skipping SAFE (no BASE_PRIVATE_KEY)`);
+  }
+
+  // step 4: issue MPT equity token (with SAFE contract address in metadata if available)
   const round: StartupRound = {
     founderAddress: founderWallet.address,
     companyName,
@@ -94,11 +165,43 @@ async function _settleMarketInner(
     totalEquityShares: String(cfg.totalEquityShares),
     transferable: true,
     royaltyBps: cfg.royaltyBps,
+    extraMetadata: safeResult
+      ? {
+          safeContractAddress: safeResult.contractAddress,
+          safeChain: "base-sepolia",
+          safeDocumentHash: safeResult.documentHash,
+        }
+      : undefined,
   };
 
   console.log(`[settle] issuing MPT equity token for ${companyName}...`);
   const equityToken = await issueEquityToken(founderWallet, round);
   console.log(`[settle] MPT issued: ${equityToken.mptIssuanceId}`);
+
+  // step 5: link XRPL MPT ID back to SAFE contract (bidirectional cross-chain link)
+  if (safeResult && basePrivateKey) {
+    try {
+      console.log(`[settle] linking XRPL MPT to SAFE contract...`);
+      safeLinkResult = await linkXRPL(
+        basePrivateKey,
+        safeResult.contractAddress,
+        equityToken.mptIssuanceId
+      );
+      console.log(`[settle] cross-chain link established`);
+      explorerLinks.push(safeLinkResult.explorerUrl);
+
+      // step 6: mark SAFE as settled on Base
+      safeSettleTxHash = await settleSAFE(
+        basePrivateKey,
+        safeResult.contractAddress
+      );
+      console.log(`[settle] SAFE marked as settled on Base`);
+    } catch (err) {
+      console.warn(
+        `[settle] SAFE linking failed (non-critical): ${(err as Error).message}`
+      );
+    }
+  }
 
   // step 4: allocate shares per participant
   const humanBets = market.bets.filter(
@@ -240,7 +343,7 @@ async function _settleMarketInner(
     );
   }
 
-  // step 7: build result
+  // step 10: build result
   const result: SettlementResult = {
     marketId: market.id,
     reportId: report.id,
@@ -253,6 +356,19 @@ async function _settleMarketInner(
     rlusdTrustLineHash,
     settledAt: new Date().toISOString(),
     explorerLinks,
+    safe: safeResult
+      ? {
+          contractAddress: safeResult.contractAddress,
+          documentHash: safeResult.documentHash,
+          deployTxHash: safeResult.transactionHash,
+          linkTxHash: safeLinkResult?.transactionHash ?? null,
+          settleTxHash: safeSettleTxHash ?? null,
+          baseSepoliaExplorerUrl: getContractExplorerUrl(
+            safeResult.contractAddress
+          ),
+          documentPreview: safeDocPreview,
+        }
+      : undefined,
   };
 
   await saveSettlement(market.id, result);
@@ -260,6 +376,7 @@ async function _settleMarketInner(
   console.log(`\n[settle] settlement complete for ${companyName}`);
   console.log(`[settle] MPT: ${equityToken.mptIssuanceId}`);
   console.log(`[settle] escrows: ${participantEscrows.length}`);
+  console.log(`[settle] SAFE: ${safeResult?.contractAddress ?? "skipped"}`);
   console.log(`[settle] RLUSD trust line: ${rlusdTrustLineHash ?? "n/a"}`);
   console.log(`[settle] RLUSD fee tx: ${rlusdFeeHash ?? "skipped (testnet)"}`);
   console.log(`[settle] explorer links: ${explorerLinks.length} transactions\n`);

@@ -1,0 +1,23 @@
+{
+  "name": "@lapis/metalex",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "main": "./dist/src/index.js",
+  "types": "./dist/src/index.d.ts",
+  "scripts": {
+    "build": "tsc",
+    "compile:sol": "tsx scripts/compile.ts",
+    "demo": "tsx scripts/demo.ts"
+  },
+  "dependencies": {
+    "viem": "^2.21.0",
+    "dotenv": "^16.4.5"
+  },
+  "devDependencies": {
+    "@types/node": "^22.0.0",
+    "solc": "^0.8.28",
+    "tsx": "^4.19.0",
+    "typescript": "^5.5.0"
+  }
+}
