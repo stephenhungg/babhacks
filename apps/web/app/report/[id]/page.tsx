@@ -11,8 +11,8 @@ import {
   TrendingUp, TrendingDown, Share2, Loader2
 } from "lucide-react";
 import { DashboardNav } from "@/components/dashboard/nav";
-import { fmt } from "@/lib/mock-data";
-import type { Startup } from "@/lib/mock-data";
+import { fmt } from "@/lib/adapters";
+import type { Startup } from "@/lib/adapters";
 import type { ReportCard } from "@/lib/api-types";
 import { getReport, getReportWithPayment, pollScore, PaywallError } from "@/lib/api";
 import type { PaymentDetails } from "@/lib/api";

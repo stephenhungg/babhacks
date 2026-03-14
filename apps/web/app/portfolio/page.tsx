@@ -4,9 +4,8 @@ import { useState, useEffect } from "react";
 import Link from "next/link";
 import { Wallet, TrendingUp, TrendingDown, ExternalLink, Shield, Check, Lock, Loader2 } from "lucide-react";
 import { DashboardNav } from "@/components/dashboard/nav";
-import { fmt } from "@/lib/mock-data";
 import { getXrplStatus } from "@/lib/api";
-import { adaptSettlementToMPT } from "@/lib/adapters";
+import { fmt, adaptSettlementToMPT } from "@/lib/adapters";
 
 type PortfolioMPT = ReturnType<typeof adaptSettlementToMPT>;
 

@@ -1,5 +1,52 @@
 import type { ReportCard, ValuationMarket, SettlementResult } from "./api-types";
-import type { Startup, SafeStatus } from "./mock-data";
+
+// ==========================================
+// Display types (used by UI components)
+// ==========================================
+
+export type SafeStatus = "open" | "settled" | "analyzing";
+
+export interface Startup {
+  id: string;
+  name: string;
+  description: string;
+  founder: string;
+  founderTitle: string;
+  twitter: string;
+  github: string;
+  website: string;
+  founded: string;
+  stage: string;
+  scores: {
+    codeQuality: number;
+    team: number;
+    traction: number;
+    social: number;
+    overall: number;
+  };
+  strengths: string[];
+  risks: string[];
+  redFlags: string[];
+  equityOffered: number;
+  valuationCap: number;
+  currentBet: number;
+  volume: number;
+  bettors: number;
+  hoursLeft: number;
+  aiPosition: number;
+  safeStatus: SafeStatus;
+  valHistory: { time: string; value: number }[];
+  languages: Record<string, number>;
+  commitFrequency: { month: string; commits: number; additions: number; deletions: number }[];
+  macroSignals: { label: string; value: string; direction: "up" | "down" | "neutral" }[];
+}
+
+/** Format a dollar amount for display */
+export function fmt(n: number): string {
+  if (n >= 1_000_000) return `$${(n / 1_000_000).toFixed(1)}M`;
+  if (n >= 1_000) return `$${(n / 1_000).toFixed(0)}K`;
+  return `$${n}`;
+}
 
 /**
  * Convert backend ReportCard + optional market/settlement into the

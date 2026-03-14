@@ -15,7 +15,7 @@ import {
   Info,
 } from "lucide-react";
 import { DashboardNav } from "@/components/dashboard/nav";
-import { fmt } from "@/lib/mock-data";
+import { fmt } from "@/lib/adapters";
 import { getXrplStatus } from "@/lib/api";
 import type { XrplStatus, SettlementResult } from "@/lib/api-types";
 
