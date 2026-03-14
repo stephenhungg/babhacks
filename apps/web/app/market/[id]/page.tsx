@@ -295,56 +295,64 @@ export default function MarketPage({ params }: { params: Promise<{ id: string }>
                   Will this startup raise above or below the current crowd valuation?
                 </p>
 
-                <div className="grid grid-cols-2 gap-2 mb-4">
-                  <button
-                    onClick={() => setBetDirection("above")}
-                    className={`py-3 text-sm font-bold border transition-all ${
-                      betDirection === "above"
-                        ? "bg-green-500 border-green-500 text-white"
-                        : "border-green-300 text-green-700 hover:bg-green-50"
-                    }`}
-                  >
-                    ABOVE ↑
-                  </button>
-                  <button
-                    onClick={() => setBetDirection("below")}
-                    className={`py-3 text-sm font-bold border transition-all ${
-                      betDirection === "below"
-                        ? "bg-red-500 border-red-500 text-white"
-                        : "border-red-300 text-red-700 hover:bg-red-50"
-                    }`}
-                  >
-                    BELOW ↓
-                  </button>
-                </div>
-
-                <div className="mb-4">
-                  <label className="text-xs text-muted-foreground block mb-1.5">Amount (USDC)</label>
-                  <input
-                    type="number"
-                    value={betAmount}
-                    onChange={(e) => setBetAmount(e.target.value)}
-                    className="w-full border border-foreground/20 bg-background px-3 py-2 text-sm font-mono focus:outline-none focus:border-foreground/50"
-                    placeholder="50"
-                    min="1"
-                  />
-                </div>
-
                 {betPlaced ? (
-                  <div className="bg-green-50 border border-green-200 p-3 text-center">
-                    <p className="text-sm font-semibold text-green-700">Bet placed!</p>
-                    <p className="text-xs text-green-600 mt-0.5">
-                      ${betAmount} USDC {betDirection === "above" ? "ABOVE" : "BELOW"} {fmt(liveVal)}
+                  <div className="bg-green-50 border border-green-200 p-4">
+                    <p className="text-sm font-semibold text-green-700 mb-0.5">Bet placed!</p>
+                    <p className="text-xs text-green-600 mb-3">
+                      ${betAmount} USDC {betDirection === "above" ? "above" : "below"} {fmt(liveVal)}
                     </p>
+                    <button
+                      onClick={() => { setBetPlaced(false); setBetDirection(null); setBetAmount("50"); }}
+                      className="w-full py-2 border border-green-300 text-green-700 text-xs font-semibold hover:bg-green-100 transition-colors"
+                    >
+                      Place another bet
+                    </button>
                   </div>
                 ) : (
-                  <button
-                    onClick={() => betDirection && setBetPlaced(true)}
-                    disabled={!betDirection || !betAmount}
-                    className="w-full py-2.5 bg-foreground text-background text-sm font-semibold hover:bg-foreground/90 transition-colors disabled:opacity-40 disabled:cursor-not-allowed"
-                  >
-                    Place bet
-                  </button>
+                  <>
+                    <div className="grid grid-cols-2 gap-2 mb-4">
+                      <button
+                        onClick={() => setBetDirection("above")}
+                        className={`py-3 text-sm font-bold border transition-all ${
+                          betDirection === "above"
+                            ? "bg-green-500 border-green-500 text-white"
+                            : "border-green-300 text-green-700 hover:bg-green-50"
+                        }`}
+                      >
+                        Above ↑
+                      </button>
+                      <button
+                        onClick={() => setBetDirection("below")}
+                        className={`py-3 text-sm font-bold border transition-all ${
+                          betDirection === "below"
+                            ? "bg-red-500 border-red-500 text-white"
+                            : "border-red-300 text-red-700 hover:bg-red-50"
+                        }`}
+                      >
+                        Below ↓
+                      </button>
+                    </div>
+
+                    <div className="mb-4">
+                      <label className="text-xs text-muted-foreground block mb-1.5">Amount (USDC)</label>
+                      <input
+                        type="number"
+                        value={betAmount}
+                        onChange={(e) => setBetAmount(e.target.value)}
+                        className="w-full border border-foreground/20 bg-background px-3 py-2 text-sm font-mono focus:outline-none focus:border-foreground/50"
+                        placeholder="50"
+                        min="1"
+                      />
+                    </div>
+
+                    <button
+                      onClick={() => betDirection && setBetPlaced(true)}
+                      disabled={!betDirection || !betAmount}
+                      className="w-full py-2.5 bg-foreground text-background text-sm font-semibold hover:bg-foreground/90 transition-colors disabled:opacity-40 disabled:cursor-not-allowed"
+                    >
+                      Place bet
+                    </button>
+                  </>
                 )}
 
                 {/* AI agent position */}
