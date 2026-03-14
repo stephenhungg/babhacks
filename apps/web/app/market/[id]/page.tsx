@@ -193,7 +193,7 @@ export default function MarketPage({ params }: { params: Promise<{ id: string }>
     ? fmt(market.agentValuation * 1_000_000)
     : "N/A";
   const agentConfidenceDisplay = market?.agentConfidence
-    ? `${Math.round(market.agentConfidence * 100)}%`
+    ? `${Math.round(market.agentConfidence)}%`
     : "";
 
   const chartData = valHistory.map((p) => ({
