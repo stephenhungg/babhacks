@@ -140,6 +140,27 @@ export async function getXrplStatus(): Promise<XrplStatus> {
   return request("/xrpl/status");
 }
 
+export interface SAFEStatus {
+  contractAddress: string;
+  documentHash: string;
+  deployTxHash: string;
+  linkTxHash: string | null;
+  settleTxHash: string | null;
+  baseSepoliaExplorerUrl: string;
+  documentPreview: string;
+  onChainStatus?: {
+    status: string;
+    mptIssuanceId: string;
+    documentHash: string;
+  };
+  xrplMptIssuanceId?: string;
+  crossChainVerified?: boolean;
+}
+
+export async function getSafe(marketId: string): Promise<SAFEStatus> {
+  return request(`/safe/${marketId}`);
+}
+
 // ==========================================
 // MONITORING
 // ==========================================
