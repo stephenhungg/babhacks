@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, Suspense } from "react";
+import { useState, useEffect, Suspense } from "react";
 import Link from "next/link";
 import { useSearchParams, useRouter } from "next/navigation";
 import { ArrowRight, Check, Github, Twitter, Wallet, AlertTriangle } from "lucide-react";
@@ -31,6 +31,11 @@ function ListPageInner() {
   const [stage, setStage] = useState<Stage>("form");
   const [completedSteps, setCompletedSteps] = useState<number>(0);
   const [startupId] = useState("neuralEdge");
+  const [isVisible, setIsVisible] = useState(false);
+
+  useEffect(() => {
+    setIsVisible(true);
+  }, []);
 
   function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
@@ -54,25 +59,44 @@ function ListPageInner() {
   }
 
   return (
-    <div className="min-h-screen bg-background">
+    <div className="min-h-screen bg-background relative overflow-hidden">
       <DashboardNav />
 
-      <div className="max-w-2xl mx-auto px-6 pt-36 pb-12">
+      {/* Subtle background grid */}
+      <div className="absolute inset-0 overflow-hidden pointer-events-none opacity-[0.03]">
+        {[...Array(10)].map((_, i) => (
+          <div
+            key={`h-${i}`}
+            className="absolute h-px bg-foreground"
+            style={{ top: `${10 * (i + 1)}%`, left: 0, right: 0 }}
+          />
+        ))}
+      </div>
+
+      <div className="relative z-10 max-w-2xl mx-auto px-6 pt-36 pb-12">
         {/* Breadcrumb */}
-        <div className="flex items-center gap-2 text-sm text-muted-foreground mb-8">
-          <Link href="/" className="hover:text-foreground transition-colors">PublicRound</Link>
+        <div className={`flex items-center gap-2 text-sm text-muted-foreground mb-8 transition-all duration-500 ${
+          isVisible ? "opacity-100 translate-y-0" : "opacity-0 translate-y-2"
+        }`}>
+          <Link href="/" className="hover:text-foreground transition-colors">Lapis</Link>
           <span>/</span>
           <span className="text-foreground">List your startup</span>
         </div>
 
         {stage === "form" && (
           <>
-            <h1 className="text-3xl font-display mb-2">List your startup</h1>
-            <p className="text-muted-foreground mb-8 text-sm">
+            <h1 className={`text-3xl font-display mb-2 transition-all duration-500 delay-75 ${
+              isVisible ? "opacity-100 translate-y-0" : "opacity-0 translate-y-4"
+            }`}>List your startup</h1>
+            <p className={`text-muted-foreground mb-8 text-sm transition-all duration-500 delay-100 ${
+              isVisible ? "opacity-100 translate-y-0" : "opacity-0 translate-y-4"
+            }`}>
               Submit your startup for AI analysis. The report goes live and the prediction market opens automatically.
             </p>
 
-            <form onSubmit={handleSubmit} className="space-y-6">
+            <form onSubmit={handleSubmit} className={`space-y-6 transition-all duration-500 delay-150 ${
+              isVisible ? "opacity-100 translate-y-0" : "opacity-0 translate-y-4"
+            }`}>
               {/* Wallet */}
               <div className="border border-foreground/10 p-5">
                 <div className="flex items-center justify-between mb-1">
@@ -189,10 +213,10 @@ function ListPageInner() {
               <button
                 type="submit"
                 disabled={!walletConnected || !github.trim() || !description.trim()}
-                className="w-full py-3.5 bg-foreground text-background font-semibold text-sm hover:bg-foreground/90 transition-colors disabled:opacity-40 disabled:cursor-not-allowed flex items-center justify-center gap-2"
+                className="w-full py-3.5 bg-foreground text-background font-semibold text-sm hover:bg-foreground/90 transition-all disabled:opacity-40 disabled:cursor-not-allowed flex items-center justify-center gap-2 group"
               >
                 Submit & start AI analysis
-                <ArrowRight className="w-4 h-4" />
+                <ArrowRight className="w-4 h-4 transition-transform group-hover:translate-x-1" />
               </button>
             </form>
           </>

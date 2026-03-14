@@ -10,7 +10,7 @@ const footerLinks = {
     { name: "Integrations", href: "#integrations" },
   ],
   Developers: [
-    { name: "Documentation", href: "#developers" },
+    { name: "Documentation", href: "https://lapis.mintlify.app/introduction" },
     { name: "API Reference", href: "#developers" },
   ],
   Team: [
