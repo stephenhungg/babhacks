@@ -15,6 +15,7 @@ const APP_TABS = [
   { label: "Markets", href: "/dashboard" },
   { label: "List startup", href: "/list" },
   { label: "Portfolio", href: "/portfolio" },
+  { label: "Equity", href: "/equity" },
 ];
 
 export function DashboardNav() {

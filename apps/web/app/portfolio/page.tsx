@@ -175,6 +175,12 @@ export default function PortfolioPage() {
                 <TrendingUp className="w-6 h-6 mx-auto mb-2 text-muted-foreground/50" />
                 <p>Per-user bet tracking is not yet available.</p>
                 <p className="text-xs mt-1">Place bets on open markets to see positions here in a future update.</p>
+                <Link
+                  href="/equity"
+                  className="inline-block mt-3 text-xs border border-foreground/20 px-3 py-1.5 hover:bg-foreground/5 transition-all group"
+                >
+                  View equity & vesting dashboard <span className="inline-block transition-transform group-hover:translate-x-0.5">&rarr;</span>
+                </Link>
               </div>
             </section>
 
