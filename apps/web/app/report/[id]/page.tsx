@@ -542,7 +542,6 @@ export default function ReportPage({ params }: { params: Promise<{ id: string }>
                 {copied ? "Copied!" : "Share report"}
               </button>
             </div>
-          </div>
         </div>
       </div>
     </div>
