@@ -107,6 +107,10 @@ export async function getMarketByReport(reportId: string): Promise<ValuationMark
   return all.find((m) => m.reportId === reportId);
 }
 
+export async function getAllMarkets(): Promise<ValuationMarket[]> {
+  return redisGetAll<ValuationMarket>(MARKET_PREFIX + "*");
+}
+
 // estimate a valuation from the report scores
 // this is what the agent uses to seed the market
 export function estimateValuation(overallScore: number): {

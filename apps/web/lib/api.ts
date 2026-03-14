@@ -108,6 +108,10 @@ export async function getMarket(marketId: string): Promise<ValuationMarket> {
   return request(`/market/${marketId}`);
 }
 
+export async function getMarkets(): Promise<ValuationMarket[]> {
+  return request(`/markets`);
+}
+
 export async function placeBet(
   marketId: string,
   userId: string,

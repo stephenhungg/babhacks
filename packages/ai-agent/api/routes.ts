@@ -20,6 +20,7 @@ import {
   closeMarket,
   getMarketById,
   getMarketByReport,
+  getAllMarkets,
   estimateValuation,
 } from "../src/polymarket/index.js";
 import type { ValuationMarket } from "../src/polymarket/index.js";
@@ -254,6 +255,24 @@ router.post("/market/:marketId/close", async (req, res) => {
       error: (err as Error).message,
     };
     res.status(400).json(response);
+  }
+});
+
+// GET /markets - list all markets
+router.get("/markets", async (_req, res) => {
+  try {
+    const markets = await getAllMarkets();
+    const response: ApiResponse<ValuationMarket[]> = {
+      success: true,
+      data: markets,
+    };
+    res.json(response);
+  } catch (err) {
+    const response: ApiResponse<never> = {
+      success: false,
+      error: (err as Error).message,
+    };
+    res.status(500).json(response);
   }
 });
 

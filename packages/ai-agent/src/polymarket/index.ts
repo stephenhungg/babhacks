@@ -16,6 +16,7 @@ export {
   closeMarket,
   getMarketById,
   getMarketByReport,
+  getAllMarkets,
   estimateValuation,
 } from "./market.js";
 export type { ValuationMarket, MarketBet } from "./market.js";
