@@ -1,0 +1,77 @@
+---
+title: Environment Variables
+description: Configuration reference for all Lapis services
+---
+
+## AI Agent (`packages/ai-agent/.env`)
+
+### Required
+
+<ParamField body="ANTHROPIC_API_KEY" type="string" required>
+  Claude API key for AI analysis. Get one at [console.anthropic.com](https://console.anthropic.com/).
+</ParamField>
+
+<ParamField body="GITHUB_TOKEN" type="string" required>
+  GitHub personal access token for REST API access. Provides higher rate limits than unauthenticated requests.
+</ParamField>
+
+### XRPL Settlement
+
+<ParamField body="FOUNDER_SEED" type="string">
+  XRPL testnet wallet seed. The founder wallet issues MPT equity tokens and creates escrows. Generate with `npm run setup` in `packages/xrpl-contracts`.
+</ParamField>
+
+<ParamField body="AGENT_SEED" type="string">
+  XRPL testnet wallet seed for the AI agent. Receives platform fees and releases escrows.
+</ParamField>
+
+<ParamField body="XRPL_NETWORK" type="string" default="testnet">
+  XRPL network to connect to. Options: `testnet`, `devnet`, `mainnet`.
+</ParamField>
+
+<ParamField body="RLUSD_ISSUER" type="string">
+  RLUSD issuer address on XRPL. Has a default value for testnet.
+</ParamField>
+
+### Optional
+
+<ParamField body="PORT" type="number" default="3001">
+  Port for the Express server.
+</ParamField>
+
+<Note>
+  The XRPL micropayment paywall on `GET /report/:id` uses the `FOUNDER_SEED` wallet address as the payment destination. No separate config needed — if `FOUNDER_SEED` is set, the paywall is active.
+</Note>
+
+<ParamField body="CLAUDE_MODEL" type="string" default="claude-sonnet-4-20250514">
+  Override the Claude model used for analysis. Defaults to Claude Sonnet.
+</ParamField>
+
+<ParamField body="AGENT_API_SECRET" type="string">
+  Bearer token for authenticating escrow release requests (`POST /xrpl/escrow/:id/release`).
+</ParamField>
+
+## XRPL Contracts (`packages/xrpl-contracts/.env`)
+
+These are only needed to run the standalone XRPL demo:
+
+<ParamField body="FOUNDER_SEED" type="string">
+  Founder wallet seed.
+</ParamField>
+
+<ParamField body="INVESTOR1_SEED" type="string">
+  First investor wallet seed.
+</ParamField>
+
+<ParamField body="INVESTOR2_SEED" type="string">
+  Second investor wallet seed.
+</ParamField>
+
+## Generating XRPL Wallets
+
+```bash
+cd packages/xrpl-contracts
+npm run setup
+```
+
+This connects to the XRPL testnet faucet, generates funded wallets, and writes the seeds to `.env`.

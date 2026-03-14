@@ -1,0 +1,39 @@
+---
+title: Close Market
+api: POST /market/{marketId}/close
+description: Close a market and finalize the consensus valuation
+---
+
+## Path Parameters
+
+<ParamField path="marketId" type="string" required>
+  Market ID.
+</ParamField>
+
+## Response
+
+Closes the market and locks in the final consensus valuation. No more bets can be placed after closing.
+
+<Note>
+  You don't need to call this explicitly before settling — `POST /market/:id/settle` will close the market automatically if it's still open.
+</Note>
+
+<RequestExample>
+```bash cURL
+curl -X POST http://localhost:3001/market/m1a2b3c4-d5e6-7890-abcd-ef1234567890/close
+```
+</RequestExample>
+
+<ResponseExample>
+```json 200
+{
+  "success": true,
+  "data": {
+    "id": "m1a2b3c4-d5e6-7890-abcd-ef1234567890",
+    "status": "closed",
+    "consensusValuation": 11.5,
+    "closedAt": "2026-03-14T10:10:00.000Z"
+  }
+}
+```
+</ResponseExample>

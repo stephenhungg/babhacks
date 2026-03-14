@@ -1,0 +1,92 @@
+---
+title: Quickstart
+description: Get Lapis running locally in under 5 minutes
+---
+
+## Prerequisites
+
+- Node.js 18+
+- npm 9+
+- A [Claude API key](https://console.anthropic.com/)
+- A [GitHub personal access token](https://github.com/settings/tokens)
+
+## Install
+
+```bash
+git clone https://github.com/lapis-project/lapis.git
+cd lapis
+npm install
+```
+
+## Configure Environment
+
+Create the `.env` file for the AI agent:
+
+```bash
+cp packages/ai-agent/.env.example packages/ai-agent/.env
+```
+
+Set the required variables:
+
+```env
+ANTHROPIC_API_KEY=sk-ant-...
+GITHUB_TOKEN=ghp_...
+```
+
+<Note>
+  XRPL wallet seeds (`FOUNDER_SEED`, `AGENT_SEED`) are only needed for settlement. You can run analysis and markets without them.
+</Note>
+
+## Build & Run
+
+```bash
+# Build shared types first, then all packages
+npm run build
+
+# Start the dev server (hot-reload)
+npm run dev:agent
+```
+
+The server starts on `http://localhost:3001`.
+
+## Try It Out
+
+### 1. Analyze a Repo
+
+```bash
+curl -X POST http://localhost:3001/analyze \
+  -H "Content-Type: application/json" \
+  -d '{"githubUrl": "https://github.com/ripple/rippled"}'
+```
+
+Returns a report ID immediately (HTTP 201). The analysis runs in the background.
+
+### 2. Poll for Results
+
+```bash
+curl http://localhost:3001/report/{id}/score
+```
+
+Status progresses: `pending` → `scraping` → `analyzing` → `complete`.
+
+### 3. Open a Market
+
+```bash
+curl -X POST http://localhost:3001/market/{reportId}
+```
+
+### 4. Place a Bet
+
+```bash
+curl -X POST http://localhost:3001/market/{marketId}/bet \
+  -H "Content-Type: application/json" \
+  -d '{"userId": "alice", "valuation": 8.5, "amount": 100}'
+```
+
+### 5. Settle on XRPL
+
+```bash
+curl -X POST http://localhost:3001/market/{marketId}/settle
+```
+
+This issues MPT equity tokens, creates vesting escrows, and pays platform fees — all on-chain.

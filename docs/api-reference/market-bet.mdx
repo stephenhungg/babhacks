@@ -1,0 +1,86 @@
+---
+title: Place Bet
+api: POST /market/{marketId}/bet
+description: Place a valuation bet on an open market
+---
+
+## Path Parameters
+
+<ParamField path="marketId" type="string" required>
+  Market ID.
+</ParamField>
+
+## Request Body
+
+<ParamField body="userId" type="string" required>
+  Identifier for the bettor.
+</ParamField>
+
+<ParamField body="valuation" type="number" required>
+  Estimated valuation in **millions USD**. Must be positive. For example, `8.5` means $8.5M.
+</ParamField>
+
+<ParamField body="amount" type="number" required>
+  Bet size in USD. Must be positive. Higher amounts have more weight in the consensus calculation.
+</ParamField>
+
+## Response
+
+Returns the updated market with the new bet included and recalculated consensus.
+
+<RequestExample>
+```bash cURL
+curl -X POST http://localhost:3001/market/m1a2b3c4-d5e6-7890-abcd-ef1234567890/bet \
+  -H "Content-Type: application/json" \
+  -d '{
+    "userId": "alice",
+    "valuation": 8.5,
+    "amount": 100
+  }'
+```
+</RequestExample>
+
+<ResponseExample>
+```json 200
+{
+  "success": true,
+  "data": {
+    "id": "m1a2b3c4-d5e6-7890-abcd-ef1234567890",
+    "status": "open",
+    "bets": [
+      {
+        "userId": "ai-agent",
+        "valuation": 15.2,
+        "amount": 80,
+        "timestamp": "2026-03-14T10:01:00.000Z"
+      },
+      {
+        "userId": "alice",
+        "valuation": 8.5,
+        "amount": 100,
+        "timestamp": "2026-03-14T10:05:00.000Z"
+      }
+    ],
+    "consensusValuation": 11.5,
+    "openedAt": "2026-03-14T10:01:00.000Z",
+    "closedAt": null
+  }
+}
+```
+```json 400
+{
+  "success": false,
+  "error": "userId, valuation (positive number), and amount (positive number) are required"
+}
+```
+</ResponseExample>
+
+## Consensus Calculation
+
+The consensus valuation is a **volume-weighted average**:
+
+```
+consensus = Σ(valuation_i * amount_i) / Σ(amount_i)
+```
+
+Larger bets carry more weight. This incentivizes putting money behind conviction.

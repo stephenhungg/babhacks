@@ -1,0 +1,58 @@
+---
+title: Get Market
+api: GET /market/{marketId}
+description: Retrieve market data including bets and consensus
+---
+
+## Path Parameters
+
+<ParamField path="marketId" type="string" required>
+  Market ID.
+</ParamField>
+
+## Response
+
+Returns the full market state including all bets and consensus valuation.
+
+<ResponseField name="data" type="ValuationMarket">
+  See [Create Market](/api-reference/market-create) for the full `ValuationMarket` schema.
+</ResponseField>
+
+<RequestExample>
+```bash cURL
+curl http://localhost:3001/market/m1a2b3c4-d5e6-7890-abcd-ef1234567890
+```
+</RequestExample>
+
+<ResponseExample>
+```json 200
+{
+  "success": true,
+  "data": {
+    "id": "m1a2b3c4-d5e6-7890-abcd-ef1234567890",
+    "reportId": "a1b2c3d4-e5f6-7890-abcd-ef1234567890",
+    "githubUrl": "https://github.com/ripple/rippled",
+    "status": "open",
+    "bets": [
+      {
+        "userId": "ai-agent",
+        "valuation": 15.2,
+        "amount": 80,
+        "timestamp": "2026-03-14T10:01:00.000Z"
+      },
+      {
+        "userId": "alice",
+        "valuation": 12.0,
+        "amount": 200,
+        "timestamp": "2026-03-14T10:05:00.000Z"
+      }
+    ],
+    "consensusValuation": 12.9,
+    "openedAt": "2026-03-14T10:01:00.000Z",
+    "closedAt": null,
+    "agentValuation": 15.2,
+    "agentConfidence": 74
+  }
+}
+```
+</ResponseExample>

@@ -1,0 +1,38 @@
+---
+title: List Monitored Repos
+api: GET /monitor
+description: List all currently monitored repositories
+---
+
+## Response
+
+<ResponseField name="data" type="MonitoredRepo[]">
+  <Expandable title="properties">
+    <ResponseField name="reportId" type="string">Report ID.</ResponseField>
+    <ResponseField name="githubUrl" type="string">GitHub URL.</ResponseField>
+    <ResponseField name="intervalMs" type="number">Check interval in milliseconds.</ResponseField>
+    <ResponseField name="lastScore" type="number | null">Most recent overall score.</ResponseField>
+  </Expandable>
+</ResponseField>
+
+<RequestExample>
+```bash cURL
+curl http://localhost:3001/monitor
+```
+</RequestExample>
+
+<ResponseExample>
+```json 200
+{
+  "success": true,
+  "data": [
+    {
+      "reportId": "a1b2c3d4-e5f6-7890-abcd-ef1234567890",
+      "githubUrl": "https://github.com/ripple/rippled",
+      "intervalMs": 30000,
+      "lastScore": 74
+    }
+  ]
+}
+```
+</ResponseExample>

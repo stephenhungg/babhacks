@@ -1,0 +1,118 @@
+---
+title: Get Full Report
+api: GET /report/{id}
+description: Retrieve the full report card (XRPL paywalled)
+---
+
+## Path Parameters
+
+<ParamField path="id" type="string" required>
+  Report ID returned from `POST /analyze`.
+</ParamField>
+
+## Authentication
+
+This endpoint is behind an XRPL micropayment paywall (0.05 XRP) when `FOUNDER_SEED` is configured. Send 0.05 XRP to the founder wallet address, then include the transaction hash in the `X-Payment-TxHash` request header. If `FOUNDER_SEED` is not set, the endpoint is free.
+
+## Response
+
+Returns the full `ReportCard` object with all analysis data.
+
+<ResponseField name="data" type="ReportCard">
+  <Expandable title="properties">
+    <ResponseField name="id" type="string">Report ID.</ResponseField>
+    <ResponseField name="githubUrl" type="string">Analyzed repository URL.</ResponseField>
+    <ResponseField name="status" type="string">One of: `pending`, `scraping`, `analyzing`, `complete`, `error`.</ResponseField>
+    <ResponseField name="scores" type="ReportScores | null">Score breakdown (see Get Report Score).</ResponseField>
+    <ResponseField name="summary" type="string | null">AI-generated summary of the analysis.</ResponseField>
+    <ResponseField name="strengths" type="string[]">List of identified strengths.</ResponseField>
+    <ResponseField name="weaknesses" type="string[]">List of identified weaknesses.</ResponseField>
+    <ResponseField name="githubData" type="GitHubData | null">
+      Raw GitHub data.
+      <Expandable title="properties">
+        <ResponseField name="owner" type="string">Repository owner.</ResponseField>
+        <ResponseField name="repo" type="string">Repository name.</ResponseField>
+        <ResponseField name="stars" type="number">Star count.</ResponseField>
+        <ResponseField name="forks" type="number">Fork count.</ResponseField>
+        <ResponseField name="openIssues" type="number">Open issue count.</ResponseField>
+        <ResponseField name="languages" type="Record<string, number>">Language breakdown by bytes.</ResponseField>
+        <ResponseField name="totalCommits" type="number">Total commit count.</ResponseField>
+        <ResponseField name="recentCommits" type="CommitSummary[]">Last N commits with SHA, message, date, and author.</ResponseField>
+        <ResponseField name="contributors" type="ContributorSummary[]">Contributors with login and contribution count.</ResponseField>
+        <ResponseField name="createdAt" type="string">Repo creation date (ISO 8601).</ResponseField>
+        <ResponseField name="updatedAt" type="string">Last update date (ISO 8601).</ResponseField>
+        <ResponseField name="description" type="string | null">Repo description.</ResponseField>
+        <ResponseField name="hasReadme" type="boolean">Whether repo has a README.</ResponseField>
+        <ResponseField name="hasLicense" type="boolean">Whether repo has a LICENSE.</ResponseField>
+        <ResponseField name="hasCi" type="boolean">Whether repo has CI configuration.</ResponseField>
+      </Expandable>
+    </ResponseField>
+    <ResponseField name="socialData" type="SocialData | null">Social signal data (platform, followers, engagement).</ResponseField>
+    <ResponseField name="adversarialReport" type="AdversarialReport | null">
+      Adversarial audit results.
+      <Expandable title="properties">
+        <ResponseField name="redFlags" type="RedFlag[]">Array of `{flag, reason, severity}` where severity is `critical`, `warning`, or `info`.</ResponseField>
+        <ResponseField name="adjustedScores" type="object">Score adjustments suggested by the auditor.</ResponseField>
+        <ResponseField name="overallAssessment" type="string">Narrative assessment.</ResponseField>
+        <ResponseField name="trustScore" type="number">0-100 trust score from the adversarial audit.</ResponseField>
+      </Expandable>
+    </ResponseField>
+    <ResponseField name="createdAt" type="string">Report creation timestamp.</ResponseField>
+    <ResponseField name="completedAt" type="string | null">Analysis completion timestamp.</ResponseField>
+    <ResponseField name="error" type="string | null">Error message if analysis failed.</ResponseField>
+  </Expandable>
+</ResponseField>
+
+<RequestExample>
+```bash cURL
+# Include the tx hash from your 0.05 XRP payment to the founder wallet
+curl -H "X-Payment-TxHash: YOUR_XRPL_TX_HASH" \
+  http://localhost:3001/report/a1b2c3d4-e5f6-7890-abcd-ef1234567890
+```
+</RequestExample>
+
+<ResponseExample>
+```json 200
+{
+  "success": true,
+  "data": {
+    "id": "a1b2c3d4-e5f6-7890-abcd-ef1234567890",
+    "githubUrl": "https://github.com/ripple/rippled",
+    "status": "complete",
+    "scores": {
+      "codeQuality": 82,
+      "teamStrength": 75,
+      "traction": 68,
+      "socialPresence": 71,
+      "overall": 74
+    },
+    "summary": "rippled is a mature, well-maintained C++ implementation of the XRP Ledger...",
+    "strengths": [
+      "Large, active contributor base",
+      "Comprehensive CI/CD pipeline",
+      "Well-documented codebase"
+    ],
+    "weaknesses": [
+      "Complex build system",
+      "Limited recent social engagement"
+    ],
+    "githubData": { "..." : "..." },
+    "socialData": null,
+    "adversarialReport": {
+      "redFlags": [],
+      "adjustedScores": {
+        "codeQuality": null,
+        "teamStrength": null,
+        "traction": null,
+        "socialPresence": null
+      },
+      "overallAssessment": "No significant concerns identified.",
+      "trustScore": 88
+    },
+    "createdAt": "2026-03-14T10:00:00.000Z",
+    "completedAt": "2026-03-14T10:00:25.000Z",
+    "error": null
+  }
+}
+```
+</ResponseExample>

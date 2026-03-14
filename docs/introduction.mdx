@@ -1,0 +1,46 @@
+---
+title: Introduction
+description: AI-powered startup valuations settled on XRPL
+---
+
+# What is Lapis?
+
+Lapis is an AI agent that analyzes startups and settles equity on the [XRP Ledger](https://xrpl.org). It scrapes GitHub repos, scores code quality and team strength using Claude, runs prediction markets for crowd consensus, and issues real equity tokens on XRPL with vesting escrows.
+
+## How It Works
+
+<Steps>
+  <Step title="AI Analysis">
+    Submit a GitHub URL. Lapis scrapes the repo (commits, contributors, languages, CI) and social signals, then runs two Claude analysis passes — a scorer and an adversarial auditor.
+  </Step>
+  <Step title="Prediction Market">
+    A valuation market opens seeded by the AI's estimate. Participants bet on what the startup is worth. The consensus valuation is the volume-weighted average of all bets.
+  </Step>
+  <Step title="XRPL Settlement">
+    The market closes and Lapis settles on-chain: MPT equity tokens are issued, vesting escrows lock shares with crypto-conditions, and platform fees are paid in RLUSD.
+  </Step>
+  <Step title="Ongoing Monitoring">
+    The AI agent continuously monitors the repo for changes, re-analyzes on new commits, and auto-adjusts market positions when scores shift.
+  </Step>
+</Steps>
+
+## Architecture
+
+Lapis is an npm workspaces monorepo with three core packages:
+
+| Package | Purpose |
+|---------|---------|
+| `@lapis/shared` | Shared TypeScript types (ReportCard, scores, market types) |
+| `@lapis/ai-agent` | Express server — analysis, markets, XRPL settlement |
+| `@lapis/xrpl-contracts` | XRPL primitives — MPT tokens, escrows, payments, wallets |
+
+The frontend (`apps/web`) is a Next.js app maintained separately.
+
+## Tech Stack
+
+- **TypeScript** — ES2022 with ESM modules
+- **Express 4** — API server with typed response wrappers
+- **Claude API** — AI analysis and adversarial auditing
+- **Octokit** — GitHub data scraping
+- **xrpl.js v4** — On-chain settlement (MPT, escrows, RLUSD)
+- **XRP Micropayments** — Native XRPL paywall for report access

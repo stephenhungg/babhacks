@@ -1,0 +1,24 @@
+---
+title: Health Check
+api: GET /health
+description: Check if the server is running
+---
+
+## Response
+
+Simple health check endpoint. Does not use the standard `ApiResponse` wrapper.
+
+<RequestExample>
+```bash cURL
+curl http://localhost:3001/health
+```
+</RequestExample>
+
+<ResponseExample>
+```json 200
+{
+  "status": "ok",
+  "timestamp": "2026-03-14T10:00:00.000Z"
+}
+```
+</ResponseExample>

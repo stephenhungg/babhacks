@@ -1,0 +1,75 @@
+---
+title: Submit Analysis
+api: POST /analyze
+description: Submit a GitHub repository for AI-powered analysis
+---
+
+## Request
+
+<ParamField body="githubUrl" type="string" required>
+  Full GitHub URL of the repository to analyze (e.g., `https://github.com/ripple/rippled`).
+</ParamField>
+
+<ParamField body="twitterHandle" type="string">
+  Optional Twitter handle for social signal analysis (e.g., `@ripple`).
+</ParamField>
+
+## Response
+
+Returns immediately with a report ID. The analysis runs asynchronously in the background.
+
+<ResponseField name="success" type="boolean">
+  Always `true` on 201.
+</ResponseField>
+
+<ResponseField name="data" type="object">
+  <Expandable title="properties">
+    <ResponseField name="id" type="string">
+      UUID of the report. Use this to poll for results.
+    </ResponseField>
+    <ResponseField name="status" type="string">
+      Initial status, always `"pending"`.
+    </ResponseField>
+  </Expandable>
+</ResponseField>
+
+<RequestExample>
+```bash cURL
+curl -X POST http://localhost:3001/analyze \
+  -H "Content-Type: application/json" \
+  -d '{
+    "githubUrl": "https://github.com/ripple/rippled",
+    "twitterHandle": "@ripple"
+  }'
+```
+</RequestExample>
+
+<ResponseExample>
+```json 201
+{
+  "success": true,
+  "data": {
+    "id": "a1b2c3d4-e5f6-7890-abcd-ef1234567890",
+    "status": "pending"
+  }
+}
+```
+```json 400
+{
+  "success": false,
+  "error": "githubUrl is required and must be a valid GitHub URL"
+}
+```
+</ResponseExample>
+
+## What Happens Next
+
+The analysis pipeline runs these steps in order:
+
+1. **Scraping** — GitHub data via Octokit (commits, contributors, languages, CI)
+2. **Social scraping** — Twitter data (currently mocked)
+3. **Polymarket** — Fetches market sentiment (non-critical)
+4. **Claude scoring** — AI evaluates code quality, team strength, traction, social presence
+5. **Adversarial audit** — Second Claude call challenges the scores (non-critical)
+
+Poll `GET /report/:id/score` to track progress.

@@ -1,0 +1,65 @@
+---
+title: Release Escrow
+api: POST /xrpl/escrow/{marketId}/release
+description: Release a vesting escrow for a specific participant
+---
+
+## Authentication
+
+Requires a bearer token matching the `AGENT_API_SECRET` environment variable.
+
+```
+Authorization: Bearer {AGENT_API_SECRET}
+```
+
+## Path Parameters
+
+<ParamField path="marketId" type="string" required>
+  Market ID of the settlement.
+</ParamField>
+
+## Request Body
+
+<ParamField body="userId" type="string" required>
+  User ID of the participant whose escrow to release.
+</ParamField>
+
+## Response
+
+<ResponseField name="data" type="object">
+  <Expandable title="properties">
+    <ResponseField name="txHash" type="string">XRPL transaction hash of the escrow finish.</ResponseField>
+    <ResponseField name="userId" type="string">Participant user ID.</ResponseField>
+    <ResponseField name="sharesReleased" type="string">Number of shares released.</ResponseField>
+    <ResponseField name="beneficiary" type="string">XRPL address that received the shares.</ResponseField>
+  </Expandable>
+</ResponseField>
+
+<RequestExample>
+```bash cURL
+curl -X POST http://localhost:3001/xrpl/escrow/m1a2b3c4/release \
+  -H "Content-Type: application/json" \
+  -H "Authorization: Bearer your-secret-here" \
+  -d '{"userId": "alice"}'
+```
+</RequestExample>
+
+<ResponseExample>
+```json 200
+{
+  "success": true,
+  "data": {
+    "txHash": "ABC123...",
+    "userId": "alice",
+    "sharesReleased": "5555556",
+    "beneficiary": "rABC..."
+  }
+}
+```
+```json 401
+{
+  "success": false,
+  "error": "Unauthorized"
+}
+```
+</ResponseExample>

@@ -1,0 +1,82 @@
+---
+title: API Overview
+description: Lapis API reference
+---
+
+## Base URL
+
+```
+http://localhost:3001
+```
+
+## Response Format
+
+All endpoints return a consistent JSON envelope:
+
+```json
+{
+  "success": true,
+  "data": { ... }
+}
+```
+
+On error:
+
+```json
+{
+  "success": false,
+  "error": "Description of what went wrong"
+}
+```
+
+## Authentication
+
+Most endpoints are public. Two exceptions:
+
+| Endpoint | Auth Method |
+|----------|-------------|
+| `GET /report/:id` | XRPL micropayment (0.05 XRP via `X-Payment-TxHash` header, disabled if `FOUNDER_SEED` not set) |
+| `POST /xrpl/escrow/:id/release` | `Authorization: Bearer {AGENT_API_SECRET}` header |
+
+## Status Codes
+
+| Code | Meaning |
+|------|---------|
+| 200 | Success |
+| 201 | Created (new resource) |
+| 400 | Bad request / validation error |
+| 401 | Unauthorized |
+| 404 | Resource not found |
+| 500 | Server error |
+
+## Endpoints at a Glance
+
+### Analysis
+| Method | Path | Description |
+|--------|------|-------------|
+| `POST` | `/analyze` | Submit a GitHub URL for AI analysis |
+| `GET` | `/report/:id/score` | Poll analysis status and scores (free) |
+| `GET` | `/report/:id` | Full report card (XRPL paywalled) |
+
+### Prediction Markets
+| Method | Path | Description |
+|--------|------|-------------|
+| `POST` | `/market/:reportId` | Open a prediction market |
+| `GET` | `/market/:marketId` | Get market data |
+| `POST` | `/market/:marketId/bet` | Place a valuation bet |
+| `POST` | `/market/:marketId/close` | Close market manually |
+
+### Settlement
+| Method | Path | Description |
+|--------|------|-------------|
+| `POST` | `/market/:marketId/settle` | Settle market on XRPL |
+| `GET` | `/xrpl/status` | XRPL wallet and settlement status |
+| `POST` | `/xrpl/escrow/:marketId/release` | Release a vesting escrow |
+
+### Monitoring
+| Method | Path | Description |
+|--------|------|-------------|
+| `POST` | `/monitor/:reportId` | Start monitoring a repo |
+| `DELETE` | `/monitor/:reportId` | Stop monitoring |
+| `GET` | `/monitor` | List all monitored repos |
+| `GET` | `/monitor/:reportId` | Check if a repo is monitored |

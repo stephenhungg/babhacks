@@ -1,0 +1,63 @@
+---
+title: Create Market
+api: POST /market/{reportId}
+description: Open a prediction market for a completed report
+---
+
+## Path Parameters
+
+<ParamField path="reportId" type="string" required>
+  Report ID from a completed analysis.
+</ParamField>
+
+## Response
+
+Creates a new prediction market seeded with the AI agent's initial valuation estimate. If a market already exists for this report, returns the existing one.
+
+<ResponseField name="data" type="ValuationMarket">
+  <Expandable title="properties">
+    <ResponseField name="id" type="string">Market ID (UUID).</ResponseField>
+    <ResponseField name="reportId" type="string">Associated report ID.</ResponseField>
+    <ResponseField name="githubUrl" type="string">Analyzed repository URL.</ResponseField>
+    <ResponseField name="status" type="string">`"open"` or `"closed"`.</ResponseField>
+    <ResponseField name="bets" type="MarketBet[]">Array of bets. Includes the agent's seed bet.</ResponseField>
+    <ResponseField name="consensusValuation" type="number | null">Volume-weighted average valuation in millions USD.</ResponseField>
+    <ResponseField name="openedAt" type="string">Market open timestamp.</ResponseField>
+    <ResponseField name="closedAt" type="string | null">`null` while market is open.</ResponseField>
+    <ResponseField name="agentValuation" type="number | null">Agent's seed valuation in millions.</ResponseField>
+    <ResponseField name="agentConfidence" type="number | null">Agent's confidence level.</ResponseField>
+  </Expandable>
+</ResponseField>
+
+<RequestExample>
+```bash cURL
+curl -X POST http://localhost:3001/market/a1b2c3d4-e5f6-7890-abcd-ef1234567890
+```
+</RequestExample>
+
+<ResponseExample>
+```json 201
+{
+  "success": true,
+  "data": {
+    "id": "m1a2b3c4-d5e6-7890-abcd-ef1234567890",
+    "reportId": "a1b2c3d4-e5f6-7890-abcd-ef1234567890",
+    "githubUrl": "https://github.com/ripple/rippled",
+    "status": "open",
+    "bets": [
+      {
+        "userId": "ai-agent",
+        "valuation": 15.2,
+        "amount": 80,
+        "timestamp": "2026-03-14T10:01:00.000Z"
+      }
+    ],
+    "consensusValuation": 15.2,
+    "openedAt": "2026-03-14T10:01:00.000Z",
+    "closedAt": null,
+    "agentValuation": 15.2,
+    "agentConfidence": 74
+  }
+}
+```
+</ResponseExample>

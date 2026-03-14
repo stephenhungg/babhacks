@@ -1,0 +1,34 @@
+---
+title: Stop Monitoring
+api: DELETE /monitor/{reportId}
+description: Stop monitoring a repo
+---
+
+## Path Parameters
+
+<ParamField path="reportId" type="string" required>
+  Report ID to stop monitoring.
+</ParamField>
+
+<RequestExample>
+```bash cURL
+curl -X DELETE http://localhost:3001/monitor/a1b2c3d4-e5f6-7890-abcd-ef1234567890
+```
+</RequestExample>
+
+<ResponseExample>
+```json 200
+{
+  "success": true,
+  "data": {
+    "message": "Monitoring stopped for a1b2c3d4-e5f6-7890-abcd-ef1234567890"
+  }
+}
+```
+```json 404
+{
+  "success": false,
+  "error": "Not monitoring this report"
+}
+```
+</ResponseExample>

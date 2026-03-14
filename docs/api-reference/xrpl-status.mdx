@@ -1,0 +1,61 @@
+---
+title: XRPL Status
+api: GET /xrpl/status
+description: Check XRPL wallet balances and settlement history
+---
+
+## Response
+
+<ResponseField name="data" type="object">
+  <Expandable title="properties">
+    <ResponseField name="configured" type="boolean">Whether XRPL wallet seeds are configured.</ResponseField>
+    <ResponseField name="network" type="string">Current XRPL network (`testnet`, `devnet`, or `mainnet`).</ResponseField>
+    <ResponseField name="wallets" type="object">
+      Wallet addresses and balances for founder and agent wallets.
+    </ResponseField>
+    <ResponseField name="settlementCount" type="number">Total number of settlements.</ResponseField>
+    <ResponseField name="settlements" type="SettlementResult[]">Array of all settlement results.</ResponseField>
+  </Expandable>
+</ResponseField>
+
+<RequestExample>
+```bash cURL
+curl http://localhost:3001/xrpl/status
+```
+</RequestExample>
+
+<ResponseExample>
+```json 200
+{
+  "success": true,
+  "data": {
+    "configured": true,
+    "network": "testnet",
+    "wallets": {
+      "founder": {
+        "address": "rXXX...",
+        "xrpBalance": "985.5"
+      },
+      "agent": {
+        "address": "rYYY...",
+        "xrpBalance": "997.2"
+      }
+    },
+    "settlementCount": 1,
+    "settlements": []
+  }
+}
+```
+```json Not Configured
+{
+  "success": true,
+  "data": {
+    "configured": false,
+    "network": "testnet",
+    "wallets": {},
+    "settlementCount": 0,
+    "settlements": []
+  }
+}
+```
+</ResponseExample>

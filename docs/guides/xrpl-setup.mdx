@@ -1,0 +1,88 @@
+---
+title: XRPL Setup
+description: Configure XRPL testnet wallets for settlement
+---
+
+## Overview
+
+XRPL settlement requires two funded wallets on testnet:
+
+- **Founder wallet** — Issues MPT equity tokens and creates vesting escrows
+- **Agent wallet** — Receives platform fees and releases escrows
+
+## Generate Wallets
+
+```bash
+cd packages/xrpl-contracts
+npm install
+npm run setup
+```
+
+This will:
+1. Connect to the XRPL testnet faucet
+2. Generate and fund wallets with test XRP
+3. Write wallet seeds to `packages/xrpl-contracts/.env`
+
+Copy the `FOUNDER_SEED` and `AGENT_SEED` values to `packages/ai-agent/.env`.
+
+## Verify Setup
+
+Start the server and check wallet status:
+
+```bash
+npm run dev:agent
+curl http://localhost:3001/xrpl/status
+```
+
+You should see wallet addresses and XRP balances:
+
+```json
+{
+  "success": true,
+  "data": {
+    "configured": true,
+    "network": "testnet",
+    "wallets": {
+      "founder": {
+        "address": "rXXX...",
+        "xrpBalance": "1000"
+      },
+      "agent": {
+        "address": "rYYY...",
+        "xrpBalance": "1000"
+      }
+    },
+    "settlementCount": 0,
+    "settlements": []
+  }
+}
+```
+
+## Run the Demo
+
+The full end-to-end demo analyzes a repo, opens a market, and settles on XRPL:
+
+```bash
+cd packages/xrpl-contracts
+npm run demo
+```
+
+This takes about 30 seconds on testnet. You'll get explorer links for all transactions.
+
+## Testnet Explorer
+
+View transactions on the XRPL testnet explorer: [https://testnet.xrpl.org](https://testnet.xrpl.org)
+
+## Known Limitations
+
+<AccordionGroup>
+  <Accordion title="RLUSD payments fail on testnet">
+    Trust line setup succeeds, but the RLUSD payment fails with `tecPATH_DRY` because testnet wallets don't have RLUSD balance. This is expected and non-critical — the settlement completes without it.
+  </Accordion>
+  <Accordion title="Settlement is slow (~30s)">
+    Each participant requires multiple sequential XRPL transactions. The demo caps at 5 participants for speed. Each transaction takes 3-5 seconds to finalize.
+  </Accordion>
+  <Accordion title="Concurrent settlements queue">
+    XRPL requires sequential sequence numbers per account. A mutex ensures only one settlement runs at a time.
+  </Accordion>
+</AccordionGroup>

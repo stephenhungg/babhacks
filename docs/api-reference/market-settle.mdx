@@ -1,0 +1,122 @@
+---
+title: Settle Market
+api: POST /market/{marketId}/settle
+description: Close market and settle equity on XRPL
+---
+
+This is the main event. Settlement converts the market consensus into real on-chain equity tokens with vesting escrows.
+
+## Path Parameters
+
+<ParamField path="marketId" type="string" required>
+  Market ID.
+</ParamField>
+
+## Prerequisites
+
+- Market must exist and have at least one bet (consensus valuation)
+- Associated report must be complete
+- `FOUNDER_SEED` and `AGENT_SEED` must be set in `.env`
+
+## Response
+
+<ResponseField name="data" type="SettlementResult">
+  <Expandable title="properties">
+    <ResponseField name="marketId" type="string">Market ID.</ResponseField>
+    <ResponseField name="reportId" type="string">Associated report ID.</ResponseField>
+    <ResponseField name="companyName" type="string">Company name (derived from repo).</ResponseField>
+    <ResponseField name="consensusValuationM" type="number">Final consensus valuation in millions USD.</ResponseField>
+    <ResponseField name="valuationCapXRP" type="string">Valuation converted to XRP drops.</ResponseField>
+    <ResponseField name="equityToken" type="EquityToken">
+      <Expandable title="properties">
+        <ResponseField name="mptIssuanceId" type="string">On-chain MPT issuance ID.</ResponseField>
+        <ResponseField name="founderAddress" type="string">Founder's XRPL address.</ResponseField>
+        <ResponseField name="companyName" type="string">Company name in token metadata.</ResponseField>
+        <ResponseField name="totalShares" type="string">Total shares issued (default: 10,000,000).</ResponseField>
+        <ResponseField name="royaltyBps" type="number">Secondary transfer royalty in basis points.</ResponseField>
+        <ResponseField name="transferable" type="boolean">Whether shares can be transferred.</ResponseField>
+        <ResponseField name="createdAt" type="number">Ledger timestamp.</ResponseField>
+      </Expandable>
+    </ResponseField>
+    <ResponseField name="escrows" type="ParticipantEscrow[]">
+      Array of participant escrows (max 5 for demo).
+      <Expandable title="properties">
+        <ResponseField name="userId" type="string">Participant's user ID.</ResponseField>
+        <ResponseField name="xrplAddress" type="string">Generated testnet wallet address.</ResponseField>
+        <ResponseField name="escrow" type="VestingEscrow">Escrow details (sequence, amounts, conditions).</ResponseField>
+        <ResponseField name="sharesAllocated" type="string">Number of shares in escrow.</ResponseField>
+        <ResponseField name="condition" type="string">Crypto-condition for release.</ResponseField>
+        <ResponseField name="explorerLink" type="string">XRPL testnet explorer link.</ResponseField>
+      </Expandable>
+    </ResponseField>
+    <ResponseField name="rlusdFeeHash" type="string | null">RLUSD payment tx hash (may be null on testnet).</ResponseField>
+    <ResponseField name="rlusdTrustLineHash" type="string | null">RLUSD trust line tx hash.</ResponseField>
+    <ResponseField name="settledAt" type="string">Settlement timestamp.</ResponseField>
+    <ResponseField name="explorerLinks" type="string[]">Array of XRPL testnet explorer links for all transactions.</ResponseField>
+  </Expandable>
+</ResponseField>
+
+<RequestExample>
+```bash cURL
+curl -X POST http://localhost:3001/market/m1a2b3c4-d5e6-7890-abcd-ef1234567890/settle
+```
+</RequestExample>
+
+<ResponseExample>
+```json 200
+{
+  "success": true,
+  "data": {
+    "marketId": "m1a2b3c4-d5e6-7890-abcd-ef1234567890",
+    "reportId": "a1b2c3d4-e5f6-7890-abcd-ef1234567890",
+    "companyName": "rippled",
+    "consensusValuationM": 11.5,
+    "valuationCapXRP": "23000000000000",
+    "equityToken": {
+      "mptIssuanceId": "00000001A1B2C3...",
+      "founderAddress": "rXXX...",
+      "companyName": "rippled",
+      "totalShares": "10000000",
+      "royaltyBps": 100,
+      "transferable": true,
+      "createdAt": 1710410000
+    },
+    "escrows": [
+      {
+        "userId": "alice",
+        "xrplAddress": "rABC...",
+        "sharesAllocated": "5555556",
+        "condition": "A0258020...",
+        "explorerLink": "https://testnet.xrpl.org/transactions/..."
+      }
+    ],
+    "rlusdFeeHash": null,
+    "rlusdTrustLineHash": "ABC123...",
+    "settledAt": "2026-03-14T10:15:00.000Z",
+    "explorerLinks": [
+      "https://testnet.xrpl.org/transactions/..."
+    ]
+  }
+}
+```
+</ResponseExample>
+
+## Settlement Steps
+
+1. **Close market** (if still open)
+2. **Issue MPT equity token** — `MPTokenIssuanceCreate` with auth, escrow, and lock flags
+3. **For each participant** (max 5, serial for sequence safety):
+   - Generate testnet wallet via faucet
+   - Holder opt-in (`MPTokenAuthorize`)
+   - Founder authorization (`MPTokenAuthorize`)
+   - Create vesting escrow (`EscrowCreate`) with 90-day cliff and crypto-condition
+4. **RLUSD trust line** — Setup trust line for stablecoin
+5. **Platform fee** — Send 2.5% fee in RLUSD (non-critical, expected to fail on testnet)
+
+<Info>
+  This endpoint is **idempotent**. Calling it on an already-settled market returns the existing settlement result.
+</Info>
+
+<Warning>
+  Settlement takes ~30 seconds on testnet due to sequential XRPL transactions with 3-5 second finality each.
+</Warning>

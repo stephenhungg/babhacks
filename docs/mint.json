@@ -1,0 +1,113 @@
+{
+  "$schema": "https://mintlify.com/schema.json",
+  "name": "Lapis",
+  "logo": {
+    "dark": "/logo/dark.svg",
+    "light": "/logo/light.svg"
+  },
+  "favicon": "/favicon.svg",
+  "colors": {
+    "primary": "#6366F1",
+    "light": "#818CF8",
+    "dark": "#4F46E5",
+    "anchors": {
+      "from": "#6366F1",
+      "to": "#8B5CF6"
+    }
+  },
+  "topbarLinks": [
+    {
+      "name": "GitHub",
+      "url": "https://github.com/stephenhungg/lapis"
+    }
+  ],
+  "tabs": [
+    {
+      "name": "API Reference",
+      "url": "api-reference"
+    }
+  ],
+  "anchors": [
+    {
+      "name": "GitHub",
+      "icon": "github",
+      "url": "https://github.com/stephenhungg/lapis"
+    }
+  ],
+  "navigation": [
+    {
+      "group": "Getting Started",
+      "pages": [
+        "introduction",
+        "quickstart",
+        "architecture"
+      ]
+    },
+    {
+      "group": "Core Concepts",
+      "pages": [
+        "concepts/data-flow",
+        "concepts/xrpl-settlement"
+      ]
+    },
+    {
+      "group": "Guides",
+      "pages": [
+        "guides/environment",
+        "guides/xrpl-setup"
+      ]
+    },
+    {
+      "group": "API Reference",
+      "pages": [
+        "api-reference/overview"
+      ]
+    },
+    {
+      "group": "Analysis",
+      "pages": [
+        "api-reference/analyze",
+        "api-reference/report-score",
+        "api-reference/report"
+      ]
+    },
+    {
+      "group": "Prediction Markets",
+      "pages": [
+        "api-reference/market-create",
+        "api-reference/market-get",
+        "api-reference/market-bet",
+        "api-reference/market-close"
+      ]
+    },
+    {
+      "group": "Settlement",
+      "pages": [
+        "api-reference/market-settle",
+        "api-reference/xrpl-status",
+        "api-reference/escrow-release"
+      ]
+    },
+    {
+      "group": "Monitoring",
+      "pages": [
+        "api-reference/monitor-start",
+        "api-reference/monitor-stop",
+        "api-reference/monitor-list",
+        "api-reference/monitor-check"
+      ]
+    },
+    {
+      "group": "Utility",
+      "pages": [
+        "api-reference/health"
+      ]
+    }
+  ],
+  "footerSocials": {
+    "github": "https://github.com/stephenhungg/lapis"
+  },
+  "api": {
+    "baseUrl": "http://localhost:3001"
+  }
+}

@@ -1,0 +1,65 @@
+---
+title: Start Monitoring
+api: POST /monitor/{reportId}
+description: Start continuously monitoring a repo for changes
+---
+
+## Path Parameters
+
+<ParamField path="reportId" type="string" required>
+  Report ID of the analyzed repo to monitor.
+</ParamField>
+
+## Request Body
+
+<ParamField body="intervalMs" type="number" default="30000">
+  Monitoring interval in milliseconds. Minimum: 10,000 (10 seconds).
+</ParamField>
+
+## Response
+
+<ResponseField name="data" type="object">
+  <Expandable title="properties">
+    <ResponseField name="reportId" type="string">Report ID being monitored.</ResponseField>
+    <ResponseField name="githubUrl" type="string">GitHub URL of the repo.</ResponseField>
+    <ResponseField name="intervalMs" type="number">Monitoring interval.</ResponseField>
+    <ResponseField name="message" type="string">Confirmation message.</ResponseField>
+  </Expandable>
+</ResponseField>
+
+<RequestExample>
+```bash cURL
+curl -X POST http://localhost:3001/monitor/a1b2c3d4 \
+  -H "Content-Type: application/json" \
+  -d '{"intervalMs": 60000}'
+```
+</RequestExample>
+
+<ResponseExample>
+```json 201
+{
+  "success": true,
+  "data": {
+    "reportId": "a1b2c3d4-e5f6-7890-abcd-ef1234567890",
+    "githubUrl": "https://github.com/ripple/rippled",
+    "intervalMs": 60000,
+    "message": "Monitoring started"
+  }
+}
+```
+</ResponseExample>
+
+## What Gets Monitored
+
+The agent checks for changes on each interval:
+
+- **New commits** — Detected via latest commit SHA comparison
+- **Star changes** — Triggers if stars change by >5% (minimum 10 star difference)
+- **Contributor changes** — New contributors joining the project
+
+When changes are detected, the agent:
+1. Re-scrapes the repo
+2. Re-runs AI analysis
+3. Updates scores
+4. Auto-adjusts market positions if scores shift
+5. Triggers XRPL hooks on significant score drops (>15 points)

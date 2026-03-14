@@ -1,0 +1,102 @@
+---
+title: Get Report Score
+api: GET /report/{id}/score
+description: Poll analysis status and scores (free, no paywall)
+---
+
+## Path Parameters
+
+<ParamField path="id" type="string" required>
+  Report ID returned from `POST /analyze`.
+</ParamField>
+
+## Response
+
+<ResponseField name="data" type="object">
+  <Expandable title="properties">
+    <ResponseField name="id" type="string">
+      Report ID.
+    </ResponseField>
+    <ResponseField name="status" type="string">
+      One of: `pending`, `scraping`, `analyzing`, `complete`, `error`.
+    </ResponseField>
+    <ResponseField name="scores" type="object | null">
+      `null` until status is `complete`.
+      <Expandable title="properties">
+        <ResponseField name="codeQuality" type="number">
+          0-100 score for code quality.
+        </ResponseField>
+        <ResponseField name="teamStrength" type="number">
+          0-100 score for team strength.
+        </ResponseField>
+        <ResponseField name="traction" type="number">
+          0-100 score for traction/activity.
+        </ResponseField>
+        <ResponseField name="socialPresence" type="number">
+          0-100 score for social presence.
+        </ResponseField>
+        <ResponseField name="overall" type="number">
+          0-100 weighted average.
+        </ResponseField>
+      </Expandable>
+    </ResponseField>
+    <ResponseField name="error" type="string | null">
+      Error message if status is `error`.
+    </ResponseField>
+  </Expandable>
+</ResponseField>
+
+<RequestExample>
+```bash cURL
+curl http://localhost:3001/report/a1b2c3d4-e5f6-7890-abcd-ef1234567890/score
+```
+</RequestExample>
+
+<ResponseExample>
+```json Complete
+{
+  "success": true,
+  "data": {
+    "id": "a1b2c3d4-e5f6-7890-abcd-ef1234567890",
+    "status": "complete",
+    "scores": {
+      "codeQuality": 82,
+      "teamStrength": 75,
+      "traction": 68,
+      "socialPresence": 71,
+      "overall": 74
+    },
+    "error": null
+  }
+}
+```
+```json Pending
+{
+  "success": true,
+  "data": {
+    "id": "a1b2c3d4-e5f6-7890-abcd-ef1234567890",
+    "status": "analyzing",
+    "scores": null,
+    "error": null
+  }
+}
+```
+</ResponseExample>
+
+## Polling Strategy
+
+The analysis typically takes 10-30 seconds. A simple polling approach:
+
+```javascript
+async function waitForReport(id) {
+  while (true) {
+    const res = await fetch(`http://localhost:3001/report/${id}/score`);
+    const { data } = await res.json();
+
+    if (data.status === "complete") return data.scores;
+    if (data.status === "error") throw new Error(data.error);
+
+    await new Promise(r => setTimeout(r, 2000)); // poll every 2s
+  }
+}
+```

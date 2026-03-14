@@ -1,0 +1,82 @@
+---
+title: Architecture
+description: How Lapis packages fit together
+---
+
+## Monorepo Structure
+
+```
+lapis/
+├── packages/
+│   ├── shared/          # @lapis/shared — TypeScript types
+│   ├── ai-agent/        # @lapis/ai-agent — Express API server
+│   └── xrpl-contracts/  # @lapis/xrpl-contracts — XRPL primitives
+└── apps/
+    └── web/             # Next.js frontend
+```
+
+## Package Dependencies
+
+```mermaid
+graph TD
+    A[apps/web] --> B[@lapis/shared]
+    C[@lapis/ai-agent] --> B
+    C --> D[@lapis/xrpl-contracts]
+    D --> B
+```
+
+`@lapis/shared` must build first since both `ai-agent` and `xrpl-contracts` reference its types.
+
+## Build Order
+
+```bash
+npm run build
+# Equivalent to:
+# 1. npm run build --workspace=packages/shared
+# 2. npm run build --workspace=packages/xrpl-contracts
+# 3. npm run build --workspace=packages/ai-agent
+```
+
+For development, `tsx watch` handles transpilation on-the-fly:
+
+```bash
+npm run dev:agent
+```
+
+## Key Design Decisions
+
+### ESM-Only
+
+The entire codebase uses ES modules (`"type": "module"` in all package.json files). All imports require `.js` extensions, even for TypeScript files:
+
+```typescript
+import { ReportCard } from "@lapis/shared/types.js";
+```
+
+### In-Memory Storage
+
+All state (reports, markets, settlements) is stored in JavaScript `Map` objects. This means:
+
+- State is lost on server restart
+- No database setup required
+- Perfect for hackathon demo scope
+
+### Fire-and-Forget Pipeline
+
+`POST /analyze` returns immediately with a report ID. The analysis pipeline (scrape → score → audit) runs asynchronously. Clients poll `/report/:id/score` for status updates.
+
+### Settlement Mutex
+
+XRPL transactions require sequential sequence numbers. A mutex ensures only one settlement runs at a time — concurrent requests queue up rather than failing.
+
+## Response Format
+
+All API responses use a typed wrapper:
+
+```typescript
+interface ApiResponse<T> {
+  success: boolean;
+  data?: T;      // present on success
+  error?: string; // present on failure
+}
+```
