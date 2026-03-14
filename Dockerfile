@@ -3,7 +3,7 @@ FROM node:20-slim AS base
 WORKDIR /app
 
 # copy root package files for workspace resolution
-COPY package.json package-lock.json ./
+COPY package.json package-lock.json tsconfig.base.json ./
 
 # copy all workspace package.json files
 COPY packages/shared/package.json packages/shared/
