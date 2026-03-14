@@ -18,7 +18,7 @@ export default function DashboardPage() {
 
   function handleAnalyze() {
     if (!githubUrl.trim()) return;
-    router.push(`/portfolio`);
+    router.push(`/list?github=${encodeURIComponent(githubUrl.trim())}`);
   }
 
   return (

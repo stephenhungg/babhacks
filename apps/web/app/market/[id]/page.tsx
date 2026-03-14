@@ -1,16 +1,23 @@
 "use client";
 
-import { useState, useEffect, use } from "react";
+import { useState, useEffect, useCallback, useRef, use } from "react";
 import Link from "next/link";
 import {
   AreaChart, Area, XAxis, YAxis, Tooltip, ResponsiveContainer,
 } from "recharts";
 import {
   Github, Twitter, Globe, ExternalLink, TrendingUp, TrendingDown,
-  AlertTriangle, Shield, Bot, ArrowUpRight, Lock
+  AlertTriangle, Shield, Bot, ArrowUpRight, Lock, Loader2
 } from "lucide-react";
 import { DashboardNav } from "@/components/dashboard/nav";
-import { STARTUPS, fmt } from "@/lib/mock-data";
+import { fmt } from "@/lib/mock-data";
+import type { Startup } from "@/lib/mock-data";
+import type { ValuationMarket, SettlementResult } from "@/lib/api-types";
+import { adaptReportToStartup } from "@/lib/adapters";
+import {
+  getMarket, getReport, createMarket, placeBet, settleMarket,
+  getUserId, ApiError,
+} from "@/lib/api";
 
 function ScoreBar({ label, score }: { label: string; score: number }) {
   const color =
@@ -28,38 +35,226 @@ function ScoreBar({ label, score }: { label: string; score: number }) {
 
 export default function MarketPage({ params }: { params: Promise<{ id: string }> }) {
   const { id } = use(params);
-  const startup = STARTUPS.find((s) => s.id === id) ?? STARTUPS[0];
+
+  const [startup, setStartup] = useState<Startup | null>(null);
+  const [market, setMarket] = useState<ValuationMarket | null>(null);
+  const [settlement, setSettlement] = useState<SettlementResult | null>(null);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
 
   const [betDirection, setBetDirection] = useState<"above" | "below" | null>(null);
   const [betAmount, setBetAmount] = useState("50");
   const [betPlaced, setBetPlaced] = useState(false);
-  const [liveVal, setLiveVal] = useState(startup.currentBet);
+  const [betLoading, setBetLoading] = useState(false);
+  const [liveVal, setLiveVal] = useState(0);
+  const [valHistory, setValHistory] = useState<{ time: string; value: number }[]>([]);
+  const [settleLoading, setSettleLoading] = useState(false);
   const [safeConverted, setSafeConverted] = useState(false);
 
-  // Simulate live valuation ticking
-  useEffect(() => {
-    if (startup.safeStatus !== "open") return;
-    const interval = setInterval(() => {
-      setLiveVal((v) => {
-        const delta = (Math.random() > 0.45 ? 1 : -1) * Math.floor(Math.random() * 80000);
-        return Math.max(startup.valuationCap * 0.6, Math.min(startup.valuationCap * 1.5, v + delta));
-      });
-    }, 2000);
-    return () => clearInterval(interval);
-  }, [startup]);
+  const marketIdRef = useRef<string | null>(null);
 
-  const chartData = startup.valHistory.map((p) => ({
+  // Initial data fetch
+  const fetchData = useCallback(async () => {
+    setLoading(true);
+    setError(null);
+    try {
+      let mkt: ValuationMarket;
+
+      // Try fetching as market ID first
+      try {
+        mkt = await getMarket(id);
+      } catch (err) {
+        if (err instanceof ApiError && err.status === 404) {
+          // Maybe it's a report ID - try fetching report and creating market
+          try {
+            const report = await getReport(id);
+            mkt = await createMarket(report.id);
+          } catch {
+            throw new Error("Could not find a market or report for this ID.");
+          }
+        } else {
+          throw err;
+        }
+      }
+
+      marketIdRef.current = mkt.id;
+      setMarket(mkt);
+
+      // Fetch the report for full data
+      const report = await getReport(mkt.reportId);
+      const adapted = adaptReportToStartup(report, mkt);
+      setStartup(adapted);
+
+      const consensusDollars = (mkt.consensusValuation ?? 0) * 1_000_000;
+      setLiveVal(consensusDollars);
+
+      // Initialize valHistory from adapted startup + current value
+      if (adapted.valHistory.length > 0) {
+        setValHistory(adapted.valHistory);
+      } else if (consensusDollars > 0) {
+        setValHistory([{ time: "now", value: consensusDollars }]);
+      }
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "Failed to load market data.");
+    } finally {
+      setLoading(false);
+    }
+  }, [id]);
+
+  useEffect(() => {
+    fetchData();
+  }, [fetchData]);
+
+  // Poll market data every 5 seconds when market is open
+  useEffect(() => {
+    if (!marketIdRef.current || market?.status === "closed") return;
+
+    const interval = setInterval(async () => {
+      try {
+        const mkt = await getMarket(marketIdRef.current!);
+        setMarket(mkt);
+        const consensusDollars = (mkt.consensusValuation ?? 0) * 1_000_000;
+        setLiveVal(consensusDollars);
+
+        if (consensusDollars > 0) {
+          setValHistory((prev) => [
+            ...prev,
+            { time: new Date().toLocaleTimeString(), value: consensusDollars },
+          ]);
+        }
+      } catch {
+        // Silently ignore poll errors
+      }
+    }, 5000);
+
+    return () => clearInterval(interval);
+  }, [market?.status]);
+
+  // Place bet handler
+  const handlePlaceBet = async () => {
+    if (!betDirection || !betAmount || !marketIdRef.current) return;
+    setBetLoading(true);
+    try {
+      const amount = parseFloat(betAmount);
+      // Valuation for the bet: if "above", bet at 110% of current; if "below", bet at 90%
+      const valuationInMillions = liveVal / 1_000_000;
+      const betValuation = betDirection === "above"
+        ? valuationInMillions * 1.1
+        : valuationInMillions * 0.9;
+
+      const updatedMarket = await placeBet(
+        marketIdRef.current,
+        getUserId(),
+        betValuation,
+        amount
+      );
+      setMarket(updatedMarket);
+      const newConsensus = (updatedMarket.consensusValuation ?? 0) * 1_000_000;
+      setLiveVal(newConsensus);
+      setBetPlaced(true);
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "Failed to place bet.");
+    } finally {
+      setBetLoading(false);
+    }
+  };
+
+  // Settlement handler
+  const handleSettle = async () => {
+    if (!marketIdRef.current) return;
+    setSettleLoading(true);
+    try {
+      const result = await settleMarket(marketIdRef.current);
+      setSettlement(result);
+      // Refresh market data
+      const mkt = await getMarket(marketIdRef.current);
+      setMarket(mkt);
+      if (startup) {
+        setStartup({ ...startup, safeStatus: "settled" });
+      }
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "Settlement failed.");
+    } finally {
+      setSettleLoading(false);
+    }
+  };
+
+  // Compute derived values
+  const isSettled = market?.status === "closed" || startup?.safeStatus === "settled";
+  const totalVolume = market?.bets.reduce((s, b) => s + b.amount, 0) ?? 0;
+  const uniqueBettors = new Set(
+    market?.bets.filter((b) => !b.userId.startsWith("ai-agent")).map((b) => b.userId) ?? []
+  ).size;
+  const openedAt = market?.openedAt ? new Date(market.openedAt).getTime() : Date.now();
+  const msLeft = Math.max(0, openedAt + 48 * 60 * 60 * 1000 - Date.now());
+  const hoursLeft = Math.round(msLeft / (60 * 60 * 1000));
+
+  const agentValuationDisplay = market?.agentValuation
+    ? fmt(market.agentValuation * 1_000_000)
+    : "N/A";
+  const agentConfidenceDisplay = market?.agentConfidence
+    ? `${Math.round(market.agentConfidence * 100)}%`
+    : "";
+
+  const chartData = valHistory.map((p) => ({
     ...p,
     value: p.value / 1_000_000,
   }));
 
-  const isSettled = startup.safeStatus === "settled";
+  // Loading state
+  if (loading) {
+    return (
+      <div className="min-h-screen bg-background">
+        <DashboardNav />
+        <div className="max-w-7xl mx-auto px-6 pt-36 pb-8 flex items-center justify-center">
+          <div className="flex flex-col items-center gap-4">
+            <Loader2 className="w-8 h-8 animate-spin text-muted-foreground" />
+            <p className="text-sm text-muted-foreground font-mono">Loading market data...</p>
+          </div>
+        </div>
+      </div>
+    );
+  }
+
+  // Error state
+  if (error && !startup) {
+    return (
+      <div className="min-h-screen bg-background">
+        <DashboardNav />
+        <div className="max-w-7xl mx-auto px-6 pt-36 pb-8 flex items-center justify-center">
+          <div className="flex flex-col items-center gap-4">
+            <AlertTriangle className="w-8 h-8 text-red-500" />
+            <p className="text-sm text-red-600 font-mono">{error}</p>
+            <button
+              onClick={fetchData}
+              className="px-4 py-2 border border-foreground/20 text-sm hover:bg-foreground/5 transition-colors"
+            >
+              Retry
+            </button>
+          </div>
+        </div>
+      </div>
+    );
+  }
+
+  if (!startup) return null;
 
   return (
     <div className="min-h-screen bg-background">
       <DashboardNav />
 
       <div className="max-w-7xl mx-auto px-6 pt-36 pb-8">
+        {/* Error banner (non-fatal) */}
+        {error && (
+          <div className="border border-red-200 bg-red-50/50 p-3 mb-4 flex items-center gap-2">
+            <AlertTriangle className="w-4 h-4 text-red-500 shrink-0" />
+            <p className="text-xs text-red-600">{error}</p>
+            <button onClick={() => setError(null)} className="ml-auto text-xs text-red-400 hover:text-red-600">
+              Dismiss
+            </button>
+          </div>
+        )}
+
         {/* Breadcrumb */}
         <div className="flex items-center gap-2 text-sm text-muted-foreground mb-6">
           <Link href="/" className="hover:text-foreground transition-colors">Markets</Link>
@@ -82,7 +277,7 @@ export default function MarketPage({ params }: { params: Promise<{ id: string }>
                 </span>
                 {!isSettled && (
                   <span className="text-xs text-muted-foreground font-mono">
-                    {startup.hoursLeft}h remaining
+                    {hoursLeft}h remaining
                   </span>
                 )}
               </div>
@@ -99,14 +294,18 @@ export default function MarketPage({ params }: { params: Promise<{ id: string }>
                 className="flex items-center gap-1.5 text-xs text-muted-foreground hover:text-foreground border border-foreground/10 px-3 py-1.5 transition-colors">
                 <Github className="w-3.5 h-3.5" /> GitHub
               </a>
-              <a href={`https://twitter.com/${startup.twitter}`} target="_blank" rel="noreferrer"
-                className="flex items-center gap-1.5 text-xs text-muted-foreground hover:text-foreground border border-foreground/10 px-3 py-1.5 transition-colors">
-                <Twitter className="w-3.5 h-3.5" /> {startup.twitter}
-              </a>
-              <a href={`https://${startup.website}`} target="_blank" rel="noreferrer"
-                className="flex items-center gap-1.5 text-xs text-muted-foreground hover:text-foreground border border-foreground/10 px-3 py-1.5 transition-colors">
-                <Globe className="w-3.5 h-3.5" /> {startup.website}
-              </a>
+              {startup.twitter && (
+                <a href={`https://twitter.com/${startup.twitter}`} target="_blank" rel="noreferrer"
+                  className="flex items-center gap-1.5 text-xs text-muted-foreground hover:text-foreground border border-foreground/10 px-3 py-1.5 transition-colors">
+                  <Twitter className="w-3.5 h-3.5" /> {startup.twitter}
+                </a>
+              )}
+              {startup.website && (
+                <a href={`https://${startup.website}`} target="_blank" rel="noreferrer"
+                  className="flex items-center gap-1.5 text-xs text-muted-foreground hover:text-foreground border border-foreground/10 px-3 py-1.5 transition-colors">
+                  <Globe className="w-3.5 h-3.5" /> {startup.website}
+                </a>
+              )}
               <Link href={`/report/${startup.id}`}
                 className="flex items-center gap-1.5 text-xs text-muted-foreground hover:text-foreground border border-foreground/10 px-3 py-1.5 transition-colors">
                 <ExternalLink className="w-3.5 h-3.5" /> Full report
@@ -182,7 +381,7 @@ export default function MarketPage({ params }: { params: Promise<{ id: string }>
                 <ul className="space-y-2">
                   {startup.risks.map((r, i) => (
                     <li key={i} className="text-xs text-muted-foreground flex gap-2">
-                      <span className="text-amber-500 mt-0.5">−</span>
+                      <span className="text-amber-500 mt-0.5">-</span>
                       {r}
                     </li>
                   ))}
@@ -218,22 +417,24 @@ export default function MarketPage({ params }: { params: Promise<{ id: string }>
             )}
 
             {/* Polymarket macro signals */}
-            <div className="border border-foreground/10 p-4">
-              <h3 className="text-sm font-semibold mb-3">Polymarket Macro Signals</h3>
-              <div className="space-y-2">
-                {startup.macroSignals.map((sig, i) => (
-                  <div key={i} className="flex items-center justify-between text-xs">
-                    <span className="text-muted-foreground">{sig.label}</span>
-                    <span className={`font-mono font-semibold ${
-                      sig.direction === "up" ? "text-green-600" :
-                      sig.direction === "down" ? "text-red-600" : "text-foreground/60"
-                    }`}>
-                      {sig.direction === "up" ? "↑" : sig.direction === "down" ? "↓" : "→"} {sig.value}
-                    </span>
-                  </div>
-                ))}
+            {startup.macroSignals.length > 0 && (
+              <div className="border border-foreground/10 p-4">
+                <h3 className="text-sm font-semibold mb-3">Polymarket Macro Signals</h3>
+                <div className="space-y-2">
+                  {startup.macroSignals.map((sig, i) => (
+                    <div key={i} className="flex items-center justify-between text-xs">
+                      <span className="text-muted-foreground">{sig.label}</span>
+                      <span className={`font-mono font-semibold ${
+                        sig.direction === "up" ? "text-green-600" :
+                        sig.direction === "down" ? "text-red-600" : "text-foreground/60"
+                      }`}>
+                        {sig.direction === "up" ? "↑" : sig.direction === "down" ? "↓" : "→"} {sig.value}
+                      </span>
+                    </div>
+                  ))}
+                </div>
               </div>
-            </div>
+            )}
           </div>
 
           {/* RIGHT: Prediction Market */}
@@ -255,7 +456,7 @@ export default function MarketPage({ params }: { params: Promise<{ id: string }>
                 )}
               </div>
               <p className="text-xs text-muted-foreground">
-                {startup.bettors} bettors · {fmt(startup.volume)} total volume
+                {uniqueBettors} bettors · {fmt(totalVolume)} total volume
               </p>
             </div>
 
@@ -346,11 +547,12 @@ export default function MarketPage({ params }: { params: Promise<{ id: string }>
                     </div>
 
                     <button
-                      onClick={() => betDirection && setBetPlaced(true)}
-                      disabled={!betDirection || !betAmount}
-                      className="w-full py-2.5 bg-foreground text-background text-sm font-semibold hover:bg-foreground/90 transition-colors disabled:opacity-40 disabled:cursor-not-allowed"
+                      onClick={handlePlaceBet}
+                      disabled={!betDirection || !betAmount || betLoading}
+                      className="w-full py-2.5 bg-foreground text-background text-sm font-semibold hover:bg-foreground/90 transition-colors disabled:opacity-40 disabled:cursor-not-allowed flex items-center justify-center gap-2"
                     >
-                      Place bet
+                      {betLoading && <Loader2 className="w-4 h-4 animate-spin" />}
+                      {betLoading ? "Placing bet..." : "Place bet"}
                     </button>
                   </>
                 )}
@@ -359,12 +561,19 @@ export default function MarketPage({ params }: { params: Promise<{ id: string }>
                 <div className="flex items-center gap-2 mt-3 pt-3 border-t border-foreground/10">
                   <Bot className="w-3.5 h-3.5 text-blue-500 shrink-0" />
                   <p className="text-xs text-muted-foreground">
-                    AI agent bet{" "}
-                    <span className="font-mono font-semibold text-foreground">$50 ABOVE</span>{" "}
-                    at{" "}
+                    AI agent valued at{" "}
                     <span className="font-mono font-semibold text-foreground">
-                      {fmt(startup.aiPosition)}
+                      {agentValuationDisplay}
                     </span>
+                    {agentConfidenceDisplay && (
+                      <>
+                        {" "}with{" "}
+                        <span className="font-mono font-semibold text-foreground">
+                          {agentConfidenceDisplay}
+                        </span>
+                        {" "}confidence
+                      </>
+                    )}
                   </p>
                 </div>
               </div>
@@ -380,12 +589,24 @@ export default function MarketPage({ params }: { params: Promise<{ id: string }>
               </div>
             )}
 
+            {/* Settle button (when market is open) */}
+            {!isSettled && (
+              <button
+                onClick={handleSettle}
+                disabled={settleLoading}
+                className="w-full py-3 border border-foreground/20 text-sm font-semibold hover:bg-foreground/5 transition-colors disabled:opacity-40 disabled:cursor-not-allowed flex items-center justify-center gap-2"
+              >
+                {settleLoading && <Loader2 className="w-4 h-4 animate-spin" />}
+                {settleLoading ? "Settling on XRPL (~30s)..." : "Settle market on XRPL"}
+              </button>
+            )}
+
             {/* Stats row */}
             <div className="grid grid-cols-3 gap-2">
               {[
-                { label: "Volume", value: fmt(startup.volume) },
-                { label: "Bettors", value: startup.bettors.toString() },
-                { label: "Hours left", value: isSettled ? "Closed" : `${startup.hoursLeft}h` },
+                { label: "Volume", value: fmt(totalVolume) },
+                { label: "Bettors", value: uniqueBettors.toString() },
+                { label: "Hours left", value: isSettled ? "Closed" : `${hoursLeft}h` },
               ].map((stat) => (
                 <div key={stat.label} className="border border-foreground/10 p-3 text-center">
                   <p className="text-xs font-mono font-bold">{stat.value}</p>
@@ -420,8 +641,18 @@ export default function MarketPage({ params }: { params: Promise<{ id: string }>
                 {[
                   { label: "Valuation cap", value: fmt(startup.valuationCap) },
                   { label: "Equity offered", value: `${startup.equityOffered}%` },
-                  { label: "MPT ticker", value: "SFLW" },
-                  { label: "MPT address", value: "rSFLW9K..." },
+                  {
+                    label: "MPT address",
+                    value: settlement?.equityToken?.mptIssuanceId
+                      ? `${settlement.equityToken.mptIssuanceId.slice(0, 8)}...`
+                      : "Pending",
+                  },
+                  {
+                    label: "Escrows",
+                    value: settlement?.escrows
+                      ? `${settlement.escrows.length} created`
+                      : "Pending",
+                  },
                 ].map((item) => (
                   <div key={item.label} className="border border-foreground/10 p-3">
                     <p className="text-xs text-muted-foreground mb-1">{item.label}</p>
@@ -436,13 +667,35 @@ export default function MarketPage({ params }: { params: Promise<{ id: string }>
                 </div>
                 <div>
                   <p className="font-semibold text-foreground mb-1">SAFE deployment</p>
-                  <p>Legally binding SAFE deployed on Base via MetaLex. Conversion enforced on-chain.</p>
+                  <p>
+                    {settlement?.safe?.contractAddress
+                      ? `Deployed at ${settlement.safe.contractAddress.slice(0, 10)}... on Base Sepolia.`
+                      : "Legally binding SAFE deployed on Base via MetaLex. Conversion enforced on-chain."}
+                  </p>
                 </div>
                 <div>
                   <p className="font-semibold text-foreground mb-1">MPT issuance</p>
                   <p>Multi-Purpose Token issued on XRPL mainnet. Each token = proportional equity claim.</p>
                 </div>
               </div>
+              {settlement?.explorerLinks && settlement.explorerLinks.length > 0 && (
+                <div className="mb-6">
+                  <p className="text-xs font-semibold text-foreground mb-2">Explorer links</p>
+                  <div className="flex flex-wrap gap-2">
+                    {settlement.explorerLinks.map((link, i) => (
+                      <a
+                        key={i}
+                        href={link}
+                        target="_blank"
+                        rel="noreferrer"
+                        className="text-xs text-blue-600 hover:text-blue-800 underline font-mono"
+                      >
+                        TX #{i + 1}
+                      </a>
+                    ))}
+                  </div>
+                </div>
+              )}
               <button
                 onClick={() => setSafeConverted(true)}
                 disabled={safeConverted}
@@ -457,7 +710,7 @@ export default function MarketPage({ params }: { params: Promise<{ id: string }>
             </>
           ) : (
             <p className="text-sm text-muted-foreground">
-              Once the {startup.hoursLeft}h prediction market closes, the SAFE terms will activate here.
+              Once the {hoursLeft}h prediction market closes, the SAFE terms will activate here.
               Token holders can then convert their positions into real equity.
             </p>
           )}

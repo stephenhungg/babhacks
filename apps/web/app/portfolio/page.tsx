@@ -2,20 +2,53 @@
 
 import { useState, useEffect } from "react";
 import Link from "next/link";
-import { Wallet, TrendingUp, TrendingDown, ExternalLink, Shield, Check, Lock } from "lucide-react";
+import { Wallet, TrendingUp, TrendingDown, ExternalLink, Shield, Check, Lock, Loader2 } from "lucide-react";
 import { DashboardNav } from "@/components/dashboard/nav";
-import { PORTFOLIO_POSITIONS, PORTFOLIO_MPTS, fmt, fmtDelta } from "@/lib/mock-data";
+import { fmt } from "@/lib/mock-data";
+import { getXrplStatus } from "@/lib/api";
+import { adaptSettlementToMPT } from "@/lib/adapters";
+
+type PortfolioMPT = ReturnType<typeof adaptSettlementToMPT>;
 
 export default function PortfolioPage() {
   const [connected, setConnected] = useState(false);
   const [isVisible, setIsVisible] = useState(false);
+  const [loading, setLoading] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+  const [mpts, setMpts] = useState<PortfolioMPT[]>([]);
 
   useEffect(() => {
     setIsVisible(true);
   }, []);
 
-  const totalPnl = PORTFOLIO_POSITIONS.reduce((acc, p) => acc + p.pnl * p.betAmount / 100, 0);
-  const totalBetValue = PORTFOLIO_POSITIONS.reduce((acc, p) => acc + p.betAmount, 0);
+  // Fetch real settlement data when wallet is "connected"
+  useEffect(() => {
+    if (!connected) return;
+
+    let cancelled = false;
+    setLoading(true);
+    setError(null);
+
+    getXrplStatus()
+      .then((status) => {
+        if (cancelled) return;
+        const adapted = status.settlements.map(adaptSettlementToMPT);
+        setMpts(adapted);
+      })
+      .catch((err) => {
+        if (cancelled) return;
+        console.error("Failed to fetch XRPL status:", err);
+        setError("Could not load XRPL data. The backend may be unavailable.");
+        setMpts([]);
+      })
+      .finally(() => {
+        if (!cancelled) setLoading(false);
+      });
+
+    return () => { cancelled = true; };
+  }, [connected]);
+
+  const totalTokensHeld = mpts.reduce((a, m) => a + m.tokensHeld, 0);
 
   return (
     <div className="min-h-screen bg-background relative overflow-hidden">
@@ -70,25 +103,35 @@ export default function PortfolioPage() {
               Connect XRPL wallet
             </button>
           </div>
+        ) : loading ? (
+          <div className={`border border-dashed border-foreground/20 p-16 text-center transition-all duration-500 delay-100 ${
+            isVisible ? "opacity-100 translate-y-0" : "opacity-0 translate-y-4"
+          }`}>
+            <Loader2 className="w-8 h-8 text-muted-foreground mx-auto mb-4 animate-spin" />
+            <p className="text-sm text-muted-foreground">Loading portfolio from XRPL...</p>
+          </div>
         ) : (
           <div className={`space-y-8 transition-all duration-500 delay-100 ${
             isVisible ? "opacity-100 translate-y-0" : "opacity-0 translate-y-4"
           }`}>
+            {/* Error banner */}
+            {error && (
+              <div className="border border-red-200 bg-red-50/50 p-4 text-sm text-red-700">
+                {error}
+              </div>
+            )}
+
             {/* Summary stats */}
             <div className="grid sm:grid-cols-4 gap-4">
               {[
-                { label: "Total bet value", value: `$${totalBetValue}` },
-                { label: "Unrealized P&L", value: `${totalPnl >= 0 ? "+" : ""}$${totalPnl.toFixed(2)}` },
-                { label: "Active bets", value: PORTFOLIO_POSITIONS.filter(p => p.status === "active").length.toString() },
-                { label: "SAFE tokens held", value: PORTFOLIO_MPTS.reduce((a, m) => a + m.tokensHeld, 0).toString() },
-              ].map((stat, i) => (
+                { label: "Total bet value", value: "N/A" },
+                { label: "Unrealized P&L", value: "N/A" },
+                { label: "Settlements", value: mpts.length.toString() },
+                { label: "SAFE tokens held", value: totalTokensHeld.toString() },
+              ].map((stat) => (
                 <div key={stat.label} className="border border-foreground/10 p-4 hover:border-foreground/20 transition-all hover:-translate-y-0.5">
                   <p className="text-xs text-muted-foreground mb-1">{stat.label}</p>
-                  <p className={`text-2xl font-display ${
-                    stat.label === "Unrealized P&L"
-                      ? totalPnl >= 0 ? "text-green-600" : "text-red-600"
-                      : ""
-                  }`}>{stat.value}</p>
+                  <p className="text-2xl font-display">{stat.value}</p>
                 </div>
               ))}
             </div>
@@ -98,69 +141,10 @@ export default function PortfolioPage() {
               <h2 className="text-sm font-semibold mb-3 text-muted-foreground">
                 Prediction market positions
               </h2>
-              <div className="border border-foreground/10 divide-y divide-foreground/10">
-                {/* Table header */}
-                <div className="grid grid-cols-7 gap-4 px-4 py-2 text-xs text-muted-foreground font-medium">
-                  <span className="col-span-2">Startup</span>
-                  <span>Direction</span>
-                  <span>Bet at</span>
-                  <span>Current</span>
-                  <span>Amount</span>
-                  <span className="text-right">P&L</span>
-                </div>
-                {PORTFOLIO_POSITIONS.map((pos) => {
-                  const pnlValue = pos.pnl * pos.betAmount / 100;
-                  const isWinning = pos.pnl > 0;
-                  return (
-                    <div key={pos.id} className="grid grid-cols-7 gap-4 px-4 py-4 items-center hover:bg-foreground/[0.02] transition-colors">
-                      <div className="col-span-2">
-                        <Link
-                          href={`/market/${pos.id}`}
-                          className="font-semibold text-sm hover:underline flex items-center gap-1"
-                        >
-                          {pos.name}
-                          <ExternalLink className="w-3 h-3 text-muted-foreground" />
-                        </Link>
-                        <span className={`text-xs px-1.5 py-0.5 font-mono mt-0.5 inline-block ${
-                          pos.status === "active"
-                            ? "bg-orange-50 text-orange-700 border border-orange-200"
-                            : "bg-green-50 text-green-700 border border-green-200"
-                        }`}>
-                          {pos.status === "active" ? "Active" : "Settled"}
-                        </span>
-                      </div>
-
-                      <div>
-                        <span className={`flex items-center gap-1 text-sm font-bold ${
-                          pos.direction === "above" ? "text-green-600" : "text-red-600"
-                        }`}>
-                          {pos.direction === "above"
-                            ? <TrendingUp className="w-3.5 h-3.5" />
-                            : <TrendingDown className="w-3.5 h-3.5" />
-                          }
-                          {pos.direction === "above" ? "Above" : "Below"}
-                        </span>
-                      </div>
-
-                      <span className="text-sm font-mono">{fmt(pos.betValuation)}</span>
-                      <span className="text-sm font-mono">{fmt(pos.currentValuation)}</span>
-                      <span className="text-sm font-mono">${pos.betAmount}</span>
-
-                      <div className="text-right">
-                        <span className={`text-sm font-bold font-mono ${
-                          isWinning ? "text-green-600" : "text-red-600"
-                        }`}>
-                          {isWinning ? "+" : ""}${pnlValue.toFixed(2)}
-                        </span>
-                        <span className={`block text-xs font-mono ${
-                          isWinning ? "text-green-500" : "text-red-500"
-                        }`}>
-                          {fmtDelta(pos.pnl)}
-                        </span>
-                      </div>
-                    </div>
-                  );
-                })}
+              <div className="border border-dashed border-foreground/20 p-8 text-center text-sm text-muted-foreground">
+                <TrendingUp className="w-6 h-6 mx-auto mb-2 text-muted-foreground/50" />
+                <p>Per-user bet tracking is not yet available.</p>
+                <p className="text-xs mt-1">Place bets on open markets to see positions here in a future update.</p>
               </div>
             </section>
 
@@ -169,9 +153,9 @@ export default function PortfolioPage() {
               <h2 className="text-sm font-semibold mb-3 text-muted-foreground">
                 SAFE MPT holdings
               </h2>
-              {PORTFOLIO_MPTS.length > 0 ? (
+              {mpts.length > 0 ? (
                 <div className="space-y-4">
-                  {PORTFOLIO_MPTS.map((mpt) => (
+                  {mpts.map((mpt) => (
                     <div key={mpt.id} className="border border-foreground/10 p-5 hover:border-foreground/20 transition-all">
                       <div className="flex items-start justify-between mb-4">
                         <div>
@@ -220,7 +204,7 @@ export default function PortfolioPage() {
                 </div>
               ) : (
                 <div className="border border-dashed border-foreground/20 p-8 text-center text-sm text-muted-foreground">
-                  No SAFE tokens yet. Bet on open markets to earn token positions.
+                  No SAFE tokens yet. Settle markets on XRPL to see token holdings here.
                 </div>
               )}
             </section>

@@ -1,28 +1,40 @@
 "use client";
 
-import { useState, useEffect, Suspense } from "react";
+import { useState, useEffect, useRef, Suspense } from "react";
 import Link from "next/link";
-import { useSearchParams, useRouter } from "next/navigation";
+import { useSearchParams } from "next/navigation";
 import { ArrowRight, Check, Github, Twitter, Wallet, AlertTriangle } from "lucide-react";
 import { DashboardNav } from "@/components/dashboard/nav";
+import * as api from "@/lib/api";
 
 const ANALYSIS_STEPS = [
-  { id: "github", label: "Cloning repository...", duration: 800 },
-  { id: "commits", label: "Scanning commit history (847 commits)...", duration: 900 },
-  { id: "code", label: "Analyzing code quality & test coverage...", duration: 1100 },
-  { id: "deps", label: "Auditing dependencies & security...", duration: 700 },
-  { id: "traction", label: "Fetching GitHub stars, forks, issues...", duration: 600 },
-  { id: "twitter", label: "Analyzing Twitter/X presence & sentiment...", duration: 800 },
-  { id: "team", label: "Profiling contributor activity...", duration: 700 },
-  { id: "adversarial", label: "Running adversarial audit...", duration: 1200 },
-  { id: "valuation", label: "Generating valuation estimate...", duration: 1000 },
+  { id: "github", label: "Cloning repository..." },
+  { id: "commits", label: "Scanning commit history..." },
+  { id: "code", label: "Analyzing code quality & test coverage..." },
+  { id: "deps", label: "Auditing dependencies & security..." },
+  { id: "traction", label: "Fetching GitHub stars, forks, issues..." },
+  { id: "twitter", label: "Analyzing Twitter/X presence & sentiment..." },
+  { id: "team", label: "Profiling contributor activity..." },
+  { id: "adversarial", label: "Running adversarial audit..." },
+  { id: "valuation", label: "Generating valuation estimate..." },
 ];
+
+// map backend status to step progress
+function statusToStep(status: string): number {
+  switch (status) {
+    case "pending": return 1;
+    case "scraping": return 4;
+    case "analyzing": return 7;
+    case "complete": return ANALYSIS_STEPS.length;
+    case "error": return ANALYSIS_STEPS.length;
+    default: return 0;
+  }
+}
 
 type Stage = "form" | "analyzing" | "done";
 
 function ListPageInner() {
   const searchParams = useSearchParams();
-  const router = useRouter();
   const [walletConnected, setWalletConnected] = useState(false);
   const [github, setGithub] = useState(searchParams.get("github") ?? "");
   const [twitter, setTwitter] = useState("");
@@ -30,32 +42,83 @@ function ListPageInner() {
   const [equity, setEquity] = useState("8");
   const [stage, setStage] = useState<Stage>("form");
   const [completedSteps, setCompletedSteps] = useState<number>(0);
-  const [startupId] = useState("neuralEdge");
   const [isVisible, setIsVisible] = useState(false);
+  const [analyzeError, setAnalyzeError] = useState<string | null>(null);
+
+  // real IDs from backend
+  const [reportId, setReportId] = useState<string | null>(null);
+  const [marketId, setMarketId] = useState<string | null>(null);
+
+  // real scores from backend
+  const [scores, setScores] = useState<{
+    codeQuality: number;
+    teamStrength: number;
+    traction: number;
+    socialPresence: number;
+    overall: number;
+  } | null>(null);
+
+  const pollRef = useRef<ReturnType<typeof setInterval> | null>(null);
 
   useEffect(() => {
     setIsVisible(true);
+    return () => {
+      if (pollRef.current) clearInterval(pollRef.current);
+    };
   }, []);
 
-  function handleSubmit(e: React.FormEvent) {
+  async function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
     if (!walletConnected || !github.trim()) return;
+
     setStage("analyzing");
-    runAnalysis();
+    setAnalyzeError(null);
+    setCompletedSteps(0);
+
+    try {
+      const result = await api.analyze(github.trim(), twitter.trim() || undefined);
+      setReportId(result.id);
+      startPolling(result.id);
+    } catch (err) {
+      setAnalyzeError(err instanceof Error ? err.message : "Analysis failed");
+      setStage("form");
+    }
   }
 
-  function runAnalysis() {
-    let step = 0;
-    let elapsed = 0;
-    ANALYSIS_STEPS.forEach((s, i) => {
-      elapsed += i === 0 ? 400 : ANALYSIS_STEPS[i - 1].duration;
-      setTimeout(() => {
-        setCompletedSteps(i + 1);
-        if (i === ANALYSIS_STEPS.length - 1) {
-          setTimeout(() => router.push(`/market/${startupId}`), 800);
+  function startPolling(id: string) {
+    // animate the first step immediately
+    setCompletedSteps(1);
+
+    pollRef.current = setInterval(async () => {
+      try {
+        const result = await api.pollScore(id);
+        const step = statusToStep(result.status);
+        setCompletedSteps(step);
+
+        if (result.status === "complete" && result.scores) {
+          if (pollRef.current) clearInterval(pollRef.current);
+          setScores(result.scores);
+
+          // create market automatically
+          try {
+            const market = await api.createMarket(id);
+            setMarketId(market.id);
+          } catch {
+            // market creation failed, still show done
+          }
+
+          setStage("done");
         }
-      }, elapsed);
-    });
+
+        if (result.status === "error") {
+          if (pollRef.current) clearInterval(pollRef.current);
+          setAnalyzeError(result.error || "Analysis failed");
+          setStage("form");
+        }
+      } catch {
+        // polling error, keep trying
+      }
+    }, 2000);
   }
 
   return (
@@ -84,6 +147,13 @@ function ListPageInner() {
             }`}>
               Submit your startup for AI analysis. The report goes live and the prediction market opens automatically.
             </p>
+
+            {analyzeError && (
+              <div className="flex gap-3 bg-red-50 border border-red-200 p-4 mb-6">
+                <AlertTriangle className="w-4 h-4 text-red-500 shrink-0 mt-0.5" />
+                <p className="text-xs text-red-700">{analyzeError}</p>
+              </div>
+            )}
 
             <form onSubmit={handleSubmit} className={`space-y-6 transition-all duration-500 delay-100 ${
               isVisible ? "opacity-100 translate-y-0" : "opacity-0 translate-y-4"
@@ -278,11 +348,11 @@ function ListPageInner() {
 
             <div className="border border-foreground/10 divide-y divide-foreground/10 mb-8">
               {[
-                { label: "Overall score", value: "84 / 100", highlight: true },
-                { label: "Code quality", value: "87" },
-                { label: "Team strength", value: "74" },
-                { label: "Traction", value: "91" },
-                { label: "Social", value: "78" },
+                { label: "Overall score", value: scores ? `${scores.overall} / 100` : "—", highlight: true },
+                { label: "Code quality", value: scores ? String(scores.codeQuality) : "—" },
+                { label: "Team strength", value: scores ? String(scores.teamStrength) : "—" },
+                { label: "Traction", value: scores ? String(scores.traction) : "—" },
+                { label: "Social", value: scores ? String(scores.socialPresence) : "—" },
                 { label: "Market opens", value: "Now · 72h window" },
                 { label: "Equity offered", value: `${equity}%` },
               ].map((row) => (
@@ -297,13 +367,13 @@ function ListPageInner() {
 
             <div className="flex gap-3">
               <Link
-                href={`/market/${startupId}`}
+                href={marketId ? `/market/${marketId}` : `/report/${reportId}`}
                 className="flex-1 py-3 bg-foreground text-background text-sm font-semibold text-center hover:bg-foreground/90 transition-colors"
               >
                 View your market page →
               </Link>
               <Link
-                href={`/report/${startupId}`}
+                href={`/report/${reportId}`}
                 className="flex-1 py-3 border border-foreground/20 text-sm font-semibold text-center hover:bg-foreground/5 transition-colors"
               >
                 See full AI report
