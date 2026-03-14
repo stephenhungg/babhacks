@@ -12,7 +12,8 @@ import { logger } from "./logger.js";
 import { requestLogger } from "./middleware/request-logger.js";
 import { createRateLimiter } from "./middleware/rate-limit.js";
 import { createApiKeyMiddleware } from "./middleware/auth.js";
-import { createXrplPaywallMiddleware } from "./xrpl/paywall.js";
+// paywall disabled for hackathon demo
+// import { createXrplPaywallMiddleware } from "./xrpl/paywall.js";
 import { errorHandler, notFoundHandler } from "./middleware/error-handler.js";
 import { securityHeaders } from "./middleware/security-headers.js";
 import { router } from "../api/routes.js";
@@ -66,9 +67,8 @@ async function main() {
     createRateLimiter("read", { maxRequests: 60, windowMs: ONE_MINUTE })
   );
 
-  // --- Auth & paywall ---
+  // --- Auth ---
   app.use(createApiKeyMiddleware());
-  app.use(await createXrplPaywallMiddleware());
 
   // --- Routes ---
   app.use(router);
@@ -85,7 +85,7 @@ async function main() {
     console.log(`\n  Analysis:`);
     console.log(`  POST /analyze             - submit a GitHub repo for analysis`);
     console.log(`  GET  /report/:id/score    - poll analysis status and scores`);
-    console.log(`  GET  /report/:id          - full report card (XRPL paywalled)`);
+    console.log(`  GET  /report/:id          - full report card`);
     console.log(`\n  Prediction Market:`);
     console.log(`  POST /market/:reportId    - open market for a completed report`);
     console.log(`  POST /market/:id/bet      - place a valuation bet`);
