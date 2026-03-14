@@ -1,5 +1,5 @@
 import Anthropic from "@anthropic-ai/sdk";
-import type { GitHubData, SocialData, ReportScores } from "@lapis/shared";
+import type { GitHubData, SocialData, ReportScores, TokenMarketData } from "@lapis/shared";
 import type { IndustrySentiment } from "../polymarket/client.js";
 import { SYSTEM_PROMPT, buildAnalysisPrompt } from "./prompts.js";
 
@@ -39,10 +39,11 @@ function computeOverall(scores: Omit<ReportScores, "overall">): number {
 export async function analyzeStartup(
   github: GitHubData,
   social: SocialData | null,
-  industrySentiment?: IndustrySentiment[]
+  industrySentiment?: IndustrySentiment[],
+  tokenData?: TokenMarketData | null
 ): Promise<AnalysisResult> {
   const client = getClient();
-  const userPrompt = buildAnalysisPrompt(github, social, industrySentiment);
+  const userPrompt = buildAnalysisPrompt(github, social, industrySentiment, tokenData);
 
   let lastError: Error | null = null;
 

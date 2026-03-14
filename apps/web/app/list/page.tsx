@@ -3,7 +3,7 @@
 import { useState, useEffect, useRef, Suspense } from "react";
 import Link from "next/link";
 import { useSearchParams } from "next/navigation";
-import { ArrowRight, Check, Github, Twitter, Wallet, AlertTriangle } from "lucide-react";
+import { ArrowRight, Check, Github, Twitter, Wallet, AlertTriangle, ChevronDown, Coins } from "lucide-react";
 import { DashboardNav } from "@/components/dashboard/nav";
 import { WalletModal } from "@/components/wallet-modal";
 import { useWallet } from "@/hooks/use-wallet";
@@ -40,6 +40,9 @@ function ListPageInner() {
   const wallet = useWallet();
   const [github, setGithub] = useState(searchParams.get("github") ?? "");
   const [twitter, setTwitter] = useState("");
+  const [tokenAddress, setTokenAddress] = useState("");
+  const [tokenChain, setTokenChain] = useState("");
+  const [showTokenFields, setShowTokenFields] = useState(false);
   const [description, setDescription] = useState("");
   const [equity, setEquity] = useState("8");
   const [stage, setStage] = useState<Stage>("form");
@@ -78,7 +81,12 @@ function ListPageInner() {
     setCompletedSteps(0);
 
     try {
-      const result = await api.analyze(github.trim(), twitter.trim() || undefined);
+      const result = await api.analyze(
+        github.trim(),
+        twitter.trim() || undefined,
+        tokenAddress.trim() || undefined,
+        tokenChain || undefined
+      );
       setReportId(result.id);
       startPolling(result.id);
     } catch (err) {
@@ -226,6 +234,53 @@ function ListPageInner() {
                     onChange={(e) => setTwitter(e.target.value)}
                   />
                 </div>
+              </div>
+
+              {/* Token data (optional, collapsible) */}
+              <div className="border border-foreground/10">
+                <button
+                  type="button"
+                  onClick={() => setShowTokenFields(!showTokenFields)}
+                  className="w-full flex items-center justify-between px-5 py-3 text-sm font-semibold hover:bg-foreground/[0.02] transition-colors"
+                >
+                  <span className="flex items-center gap-2">
+                    <Coins className="w-4 h-4 text-muted-foreground" />
+                    Token data (optional)
+                  </span>
+                  <ChevronDown className={`w-4 h-4 text-muted-foreground transition-transform ${showTokenFields ? "rotate-180" : ""}`} />
+                </button>
+                {showTokenFields && (
+                  <div className="px-5 pb-5 space-y-4 border-t border-foreground/10 pt-4">
+                    <div>
+                      <label className="text-sm font-semibold block mb-1">Token address</label>
+                      <input
+                        className="w-full border border-foreground/20 bg-background px-4 py-2.5 text-sm focus:outline-none focus:border-foreground/50 transition placeholder-muted-foreground font-mono"
+                        placeholder="Contract address (optional)"
+                        value={tokenAddress}
+                        onChange={(e) => setTokenAddress(e.target.value)}
+                      />
+                    </div>
+                    <div>
+                      <label className="text-sm font-semibold block mb-1">Chain</label>
+                      <select
+                        className="w-full border border-foreground/20 bg-background px-4 py-2.5 text-sm focus:outline-none focus:border-foreground/50 transition text-foreground"
+                        value={tokenChain}
+                        onChange={(e) => setTokenChain(e.target.value)}
+                      >
+                        <option value="">Select chain (optional)</option>
+                        <option value="solana">Solana</option>
+                        <option value="ethereum">Ethereum</option>
+                        <option value="base">Base</option>
+                        <option value="xrpl">XRPL</option>
+                        <option value="bsc">BSC</option>
+                        <option value="polygon">Polygon</option>
+                        <option value="arbitrum">Arbitrum</option>
+                        <option value="avalanche">Avalanche</option>
+                        <option value="other">Other</option>
+                      </select>
+                    </div>
+                  </div>
+                )}
               </div>
 
               {/* Description */}

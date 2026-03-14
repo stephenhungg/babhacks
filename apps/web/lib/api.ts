@@ -59,11 +59,13 @@ async function request<T>(path: string, options?: RequestInit): Promise<T> {
 
 export async function analyze(
   githubUrl: string,
-  twitterHandle?: string
+  twitterHandle?: string,
+  tokenAddress?: string,
+  tokenChain?: string
 ): Promise<{ id: string; status: string }> {
   return request("/analyze", {
     method: "POST",
-    body: JSON.stringify({ githubUrl, twitterHandle }),
+    body: JSON.stringify({ githubUrl, twitterHandle, tokenAddress, tokenChain }),
   });
 }
 

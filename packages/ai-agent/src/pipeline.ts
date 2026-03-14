@@ -1,25 +1,39 @@
-import { scrapeGitHub, scrapeSocial } from "./scrapers/index.js";
+import { scrapeGitHub, scrapeSocial, scrapeTokenData } from "./scrapers/index.js";
 import { analyzeStartup, runAdversarialAudit } from "./analysis/index.js";
 import { getIndustrySentiment } from "./polymarket/index.js";
 import { updateReport } from "./store.js";
+import type { TokenMarketData } from "@lapis/shared";
 
 export async function runAnalysisPipeline(
   reportId: string,
   githubUrl: string,
-  twitterHandle?: string
+  twitterHandle?: string,
+  tokenAddress?: string,
+  tokenChain?: string
 ): Promise<void> {
   try {
     await updateReport(reportId, { status: "scraping" });
 
-    const [githubData, socialData] = await Promise.all([
+    // Build parallel scrape tasks
+    const scrapePromises: [
+      Promise<Awaited<ReturnType<typeof scrapeGitHub>>>,
+      Promise<Awaited<ReturnType<typeof scrapeSocial>>>,
+      Promise<TokenMarketData | null>,
+    ] = [
       scrapeGitHub(githubUrl),
       scrapeSocial(twitterHandle),
-    ]);
+      tokenAddress
+        ? scrapeTokenData(tokenAddress, tokenChain)
+        : Promise.resolve(null),
+    ];
+
+    const [githubData, socialData, tokenData] = await Promise.all(scrapePromises);
 
     await updateReport(reportId, {
       status: "analyzing",
       githubData,
       socialData,
+      ...(tokenData ? { tokenData } : {}),
     });
 
     // fetch polymarket sentiment in parallel with nothing blocking
@@ -42,11 +56,16 @@ export async function runAnalysisPipeline(
       console.warn(`Polymarket sentiment fetch failed, continuing without it:`, (err as Error).message);
     }
 
-    // primary analysis with polymarket context
+    if (tokenData) {
+      console.log(`Report ${reportId} token data: ${tokenData.symbol} on ${tokenData.chain} — $${tokenData.priceUsd}`);
+    }
+
+    // primary analysis with polymarket context and token data
     const { scores, summary, strengths, weaknesses } = await analyzeStartup(
       githubData,
       socialData,
-      industrySentiment
+      industrySentiment,
+      tokenData
     );
 
     await updateReport(reportId, {

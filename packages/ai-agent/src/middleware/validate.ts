@@ -22,6 +22,12 @@ const TWITTER_HANDLE_RE = /^@?[A-Za-z0-9_]{1,15}$/;
 /** Alphanumeric, hyphens, and underscores. */
 const USER_ID_RE = /^[A-Za-z0-9_-]+$/;
 
+/** Token addresses: alphanumeric + standard address chars (0x prefix, base58, etc). */
+const TOKEN_ADDRESS_RE = /^[A-Za-z0-9._-]+$/;
+
+/** Chain slugs: lowercase alphanumeric + hyphens. */
+const TOKEN_CHAIN_RE = /^[a-z0-9-]+$/;
+
 /**
  * Route params are either:
  *   - UUIDv4  (report ids)
@@ -161,6 +167,56 @@ export function validateRouteId(
     return {
       field: paramName,
       message: `${paramName} must be a valid UUID or prefixed ID (e.g. mkt_abc12345)`,
+    };
+  }
+  return null;
+}
+
+export function validateTokenAddress(raw: unknown): ValidationError | null {
+  if (raw === undefined || raw === null || raw === "") return null; // optional
+  if (typeof raw !== "string") {
+    return {
+      field: "tokenAddress",
+      message: "tokenAddress must be a string",
+    };
+  }
+  const addr = raw.trim();
+  if (addr.length > 200) {
+    return {
+      field: "tokenAddress",
+      message: "tokenAddress must be at most 200 characters",
+    };
+  }
+  if (!TOKEN_ADDRESS_RE.test(addr)) {
+    return {
+      field: "tokenAddress",
+      message:
+        "Invalid tokenAddress. Must contain only alphanumeric characters, dots, hyphens, and underscores",
+    };
+  }
+  return null;
+}
+
+export function validateTokenChain(raw: unknown): ValidationError | null {
+  if (raw === undefined || raw === null || raw === "") return null; // optional
+  if (typeof raw !== "string") {
+    return {
+      field: "tokenChain",
+      message: "tokenChain must be a string",
+    };
+  }
+  const chain = raw.trim();
+  if (chain.length > 50) {
+    return {
+      field: "tokenChain",
+      message: "tokenChain must be at most 50 characters",
+    };
+  }
+  if (!TOKEN_CHAIN_RE.test(chain)) {
+    return {
+      field: "tokenChain",
+      message:
+        "Invalid tokenChain. Must be lowercase alphanumeric with hyphens (e.g. 'solana', 'ethereum', 'base')",
     };
   }
   return null;

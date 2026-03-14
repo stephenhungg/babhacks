@@ -2,6 +2,25 @@
 export interface AnalyzeRequest {
   githubUrl: string;
   twitterHandle?: string;
+  tokenAddress?: string;  // token contract address
+  tokenChain?: string;    // chain slug (e.g. "solana", "ethereum", "xrpl", "base")
+}
+
+// === Token market data ===
+export interface TokenMarketData {
+  address: string;
+  chain: string;
+  name: string;
+  symbol: string;
+  priceUsd: string;
+  marketCap: number | null;
+  fdv: number | null;
+  liquidity: number | null;
+  volume24h: number | null;
+  priceChange24h: number | null;
+  pairAddress: string;
+  dexId: string;
+  url: string; // dexscreener URL
 }
 
 // === Scraped data ===
@@ -82,6 +101,7 @@ export interface ReportCard {
   githubData: GitHubData | null;
   socialData: SocialData | null;
   adversarialReport: AdversarialReport | null;
+  tokenData?: TokenMarketData | null;
   createdAt: string;
   completedAt: string | null;
   error: string | null;

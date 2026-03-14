@@ -374,6 +374,88 @@ export default function ReportPage({ params }: { params: Promise<{ id: string }>
           </p>
         </div>
 
+        {/* Token Market Data */}
+        {report.tokenData && (
+          <div className="border border-foreground/10 p-5 mb-6">
+            <div className="flex items-center justify-between mb-4">
+              <h2 className="text-sm font-semibold">
+                Token — {report.tokenData.name} ({report.tokenData.symbol})
+              </h2>
+              <a
+                href={report.tokenData.url}
+                target="_blank"
+                rel="noopener noreferrer"
+                className="flex items-center gap-1 text-xs text-muted-foreground hover:text-foreground transition-colors"
+              >
+                DexScreener <ExternalLink className="w-3 h-3" />
+              </a>
+            </div>
+            <div className="grid grid-cols-2 sm:grid-cols-3 gap-4">
+              <div>
+                <p className="text-xs text-muted-foreground mb-0.5">Price</p>
+                <p className="text-lg font-display">${report.tokenData.priceUsd}</p>
+              </div>
+              <div>
+                <p className="text-xs text-muted-foreground mb-0.5">Market Cap</p>
+                <p className="text-lg font-display">
+                  {report.tokenData.marketCap != null
+                    ? `$${report.tokenData.marketCap.toLocaleString()}`
+                    : "—"}
+                </p>
+              </div>
+              <div>
+                <p className="text-xs text-muted-foreground mb-0.5">FDV</p>
+                <p className="text-lg font-display">
+                  {report.tokenData.fdv != null
+                    ? `$${report.tokenData.fdv.toLocaleString()}`
+                    : "—"}
+                </p>
+              </div>
+              <div>
+                <p className="text-xs text-muted-foreground mb-0.5">24h Volume</p>
+                <p className="text-lg font-display">
+                  {report.tokenData.volume24h != null
+                    ? `$${report.tokenData.volume24h.toLocaleString()}`
+                    : "—"}
+                </p>
+              </div>
+              <div>
+                <p className="text-xs text-muted-foreground mb-0.5">24h Change</p>
+                <p className={`text-lg font-display ${
+                  report.tokenData.priceChange24h != null
+                    ? report.tokenData.priceChange24h >= 0
+                      ? "text-green-600"
+                      : "text-red-600"
+                    : ""
+                }`}>
+                  {report.tokenData.priceChange24h != null ? (
+                    <span className="flex items-center gap-1">
+                      {report.tokenData.priceChange24h >= 0 ? (
+                        <TrendingUp className="w-4 h-4" />
+                      ) : (
+                        <TrendingDown className="w-4 h-4" />
+                      )}
+                      {report.tokenData.priceChange24h >= 0 ? "+" : ""}
+                      {report.tokenData.priceChange24h.toFixed(2)}%
+                    </span>
+                  ) : "—"}
+                </p>
+              </div>
+              <div>
+                <p className="text-xs text-muted-foreground mb-0.5">Liquidity</p>
+                <p className="text-lg font-display">
+                  {report.tokenData.liquidity != null
+                    ? `$${report.tokenData.liquidity.toLocaleString()}`
+                    : "—"}
+                </p>
+              </div>
+            </div>
+            <p className="text-xs text-muted-foreground mt-3 font-mono">
+              {report.tokenData.chain} · {report.tokenData.dexId} · {report.tokenData.pairAddress.slice(0, 8)}...
+            </p>
+          </div>
+        )}
+
         {/* Full report content (unlocked) */}
         <div className="space-y-6">
 

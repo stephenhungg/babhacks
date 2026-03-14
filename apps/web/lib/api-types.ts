@@ -65,6 +65,22 @@ export interface AdversarialReport {
   trustScore: number;
 }
 
+export interface TokenMarketData {
+  address: string;
+  chain: string;
+  name: string;
+  symbol: string;
+  priceUsd: string;
+  marketCap: number | null;
+  fdv: number | null;
+  liquidity: number | null;
+  volume24h: number | null;
+  priceChange24h: number | null;
+  pairAddress: string;
+  dexId: string;
+  url: string;
+}
+
 export interface ReportCard {
   id: string;
   githubUrl: string;
@@ -76,6 +92,7 @@ export interface ReportCard {
   githubData: GitHubData | null;
   socialData: SocialData | null;
   adversarialReport: AdversarialReport | null;
+  tokenData?: TokenMarketData | null;
   createdAt: string;
   completedAt: string | null;
   error: string | null;

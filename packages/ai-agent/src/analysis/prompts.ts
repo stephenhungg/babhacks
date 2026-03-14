@@ -1,4 +1,4 @@
-import type { GitHubData, SocialData } from "@lapis/shared";
+import type { GitHubData, SocialData, TokenMarketData } from "@lapis/shared";
 import type { IndustrySentiment } from "../polymarket/client.js";
 
 export const SYSTEM_PROMPT = `You are a startup technical due-diligence analyst for Lapis, a platform that creates transparent startup valuations.
@@ -31,6 +31,13 @@ SOCIAL PRESENCE (weight: 15%)
 - 40-59: 100-1k followers, some activity
 - 0-39: Under 100 followers or no social presence
 
+IMPORTANT: If token market data is provided, factor it into your valuation assessment:
+- Consider whether the current market cap aligns with the project's fundamentals
+- High liquidity relative to market cap is a positive signal
+- Very low liquidity or volume may indicate a dead or illiquid token
+- Large 24h price swings should be noted as volatility risk
+- Reference the token data in your summary and strengths/weaknesses where relevant
+
 IMPORTANT: If Polymarket sentiment data is provided, factor it into your analysis:
 - Bullish industry sentiment should be noted as a tailwind (mention it in strengths if relevant)
 - Bearish industry sentiment should be noted as a headwind (mention it in weaknesses if relevant)
@@ -55,7 +62,8 @@ Be honest and data-driven. Do not inflate scores. 3-5 strengths and 3-5 weakness
 export function buildAnalysisPrompt(
   github: GitHubData,
   social: SocialData | null,
-  industrySentiment?: IndustrySentiment[]
+  industrySentiment?: IndustrySentiment[],
+  tokenData?: TokenMarketData | null
 ): string {
   const data: Record<string, unknown> = {
     github: {
@@ -84,6 +92,20 @@ export function buildAnalysisPrompt(
         }
       : null,
   };
+
+  // add token market data if available
+  if (tokenData) {
+    data.tokenMarketData = {
+      token: `${tokenData.name} (${tokenData.symbol}) on ${tokenData.chain}`,
+      priceUsd: `$${tokenData.priceUsd}`,
+      marketCap: tokenData.marketCap != null ? `$${tokenData.marketCap.toLocaleString()}` : "unknown",
+      fdv: tokenData.fdv != null ? `$${tokenData.fdv.toLocaleString()}` : "unknown",
+      volume24h: tokenData.volume24h != null ? `$${tokenData.volume24h.toLocaleString()}` : "unknown",
+      priceChange24h: tokenData.priceChange24h != null ? `${tokenData.priceChange24h}%` : "unknown",
+      liquidity: tokenData.liquidity != null ? `$${tokenData.liquidity.toLocaleString()}` : "unknown",
+      dex: tokenData.dexId,
+    };
+  }
 
   // add polymarket sentiment if available
   if (industrySentiment && industrySentiment.length > 0) {

@@ -36,6 +36,8 @@ import {
   sanitizeString,
   validateGithubUrl,
   validateTwitterHandle,
+  validateTokenAddress,
+  validateTokenChain,
   validateUserId,
   validatePositiveNumber,
   validateIntervalMs,
@@ -56,13 +58,19 @@ export const router = Router();
 
 // POST /analyze - submit a repo for analysis
 router.post("/analyze", async (req, res) => {
-  const { githubUrl: rawUrl, twitterHandle: rawHandle } =
-    req.body as AnalyzeRequest;
+  const {
+    githubUrl: rawUrl,
+    twitterHandle: rawHandle,
+    tokenAddress: rawTokenAddress,
+    tokenChain: rawTokenChain,
+  } = req.body as AnalyzeRequest;
 
   if (
     sendValidationError(res, [
       validateGithubUrl(rawUrl),
       validateTwitterHandle(rawHandle),
+      validateTokenAddress(rawTokenAddress),
+      validateTokenChain(rawTokenChain),
     ])
   )
     return;
@@ -71,11 +79,17 @@ router.post("/analyze", async (req, res) => {
   const twitterHandle = rawHandle
     ? sanitizeString(rawHandle, 50)
     : undefined;
+  const tokenAddress = rawTokenAddress
+    ? sanitizeString(rawTokenAddress, 200)
+    : undefined;
+  const tokenChain = rawTokenChain
+    ? sanitizeString(rawTokenChain, 50)
+    : undefined;
 
   const report = await createReport(githubUrl);
 
   // fire and forget - don't await
-  runAnalysisPipeline(report.id, githubUrl, twitterHandle);
+  runAnalysisPipeline(report.id, githubUrl, twitterHandle, tokenAddress, tokenChain);
 
   const response: ApiResponse<{ id: string; status: string }> = {
     success: true,
