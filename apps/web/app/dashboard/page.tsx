@@ -1,12 +1,10 @@
 "use client";
 
 import { useState, useEffect } from "react";
-import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { ArrowRight } from "lucide-react";
 import { DashboardNav } from "@/components/dashboard/nav";
 import { AnimatedSphere } from "@/components/landing/animated-sphere";
-import { STARTUPS } from "@/lib/mock-data";
 
 export default function DashboardPage() {
   const [githubUrl, setGithubUrl] = useState("");
@@ -19,11 +17,7 @@ export default function DashboardPage() {
 
   function handleAnalyze() {
     if (!githubUrl.trim()) return;
-    const normalized = githubUrl.trim().replace(/^https?:\/\//, "").replace(/\/$/, "").toLowerCase();
-    const match = STARTUPS.find((s) =>
-      s.github.toLowerCase().replace(/^https?:\/\//, "").replace(/\/$/, "") === normalized
-    );
-    router.push(match ? `/market/${match.id}` : `/list?github=${encodeURIComponent(githubUrl)}`);
+    router.push(`/list?github=${encodeURIComponent(githubUrl.trim())}`);
   }
 
   return (
