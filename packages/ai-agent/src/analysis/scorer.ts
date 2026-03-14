@@ -1,5 +1,5 @@
 import Anthropic from "@anthropic-ai/sdk";
-import type { GitHubData, SocialData, ReportScores } from "@publicround/shared";
+import type { GitHubData, SocialData, ReportScores } from "@lapis/shared";
 import type { IndustrySentiment } from "../polymarket/client.js";
 import { SYSTEM_PROMPT, buildAnalysisPrompt } from "./prompts.js";
 

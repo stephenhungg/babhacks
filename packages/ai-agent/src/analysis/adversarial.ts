@@ -4,10 +4,10 @@ import type {
   SocialData,
   ReportScores,
   AdversarialReport,
-} from "@publicround/shared";
+} from "@lapis/shared";
 import { CLAUDE_MODEL } from "./scorer.js";
 
-const RED_TEAM_PROMPT = `You are an adversarial auditor for PublicRound, a startup transparency platform. Your job is to poke holes in a startup's data and find red flags that a bullish analyst might overlook.
+const RED_TEAM_PROMPT = `You are an adversarial auditor for Lapis, a startup transparency platform. Your job is to poke holes in a startup's data and find red flags that a bullish analyst might overlook.
 
 You are given:
 1. Raw data from a startup's GitHub and social profiles

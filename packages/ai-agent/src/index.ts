@@ -5,3 +5,5 @@ export { runAdversarialAudit } from "./analysis/adversarial.js";
 export { runAnalysisPipeline } from "./pipeline.js";
 export { createReport, getReport, updateReport } from "./store.js";
 export { startMonitoring, stopMonitoring, getMonitoredRepos } from "./monitor.js";
+export { settleMarket, getSettlement, getAllSettlements } from "./xrpl/index.js";
+export type { SettlementResult, ParticipantEscrow } from "./xrpl/index.js";

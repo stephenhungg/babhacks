@@ -1,0 +1,14 @@
+node_modules
+dist
+.git
+**/.env
+**/.env.*
+!**/.env.example
+.claude
+apps/
+packages/cli/
+*.md
+*.log
+coverage/
+.vscode/
+.idea/

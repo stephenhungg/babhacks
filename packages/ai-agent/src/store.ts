@@ -1,5 +1,5 @@
 import { v4 as uuidv4 } from "uuid";
-import type { ReportCard } from "@publicround/shared";
+import type { ReportCard } from "@lapis/shared";
 
 const reports = new Map<string, ReportCard>();
 

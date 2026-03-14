@@ -1,4 +1,4 @@
-import type { SocialData } from "@publicround/shared";
+import type { SocialData } from "@lapis/shared";
 
 // mock implementation for hackathon
 // TODO: replace with real Twitter/X API integration

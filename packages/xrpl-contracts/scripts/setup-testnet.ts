@@ -5,7 +5,7 @@ import fs from "fs"
 import path from "path"
 
 async function main() {
-  console.log("🚀 PublicRound — XRPL Testnet Setup\n")
+  console.log("🚀 Lapis — XRPL Testnet Setup\n")
 
   console.log("Generating wallets...")
   const founder = generateWallet()

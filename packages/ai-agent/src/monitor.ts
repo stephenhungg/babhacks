@@ -7,7 +7,8 @@ import {
   estimateValuation,
 } from "./polymarket/index.js";
 import { getReport, updateReport } from "./store.js";
-import type { GitHubData } from "@publicround/shared";
+import { onScoreChange } from "./xrpl/index.js";
+import type { GitHubData } from "@lapis/shared";
 
 interface MonitoredRepo {
   reportId: string;
@@ -106,6 +107,13 @@ async function checkAndUpdate(reportId: string): Promise<void> {
     console.log(
       `[monitor] ${reportId} - score updated: ${oldScore} -> ${scores.overall}`
     );
+
+    // hook into XRPL: if score dropped significantly, agent reacts
+    if (oldScore !== null && oldScore !== scores.overall) {
+      onScoreChange(reportId, oldScore, scores.overall).catch((err) =>
+        console.warn(`[monitor] ${reportId} - xrpl hook failed:`, (err as Error).message)
+      );
+    }
 
     // agent adjusts market position if score changed
     const market = getMarketByReport(reportId);

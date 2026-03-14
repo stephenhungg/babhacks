@@ -1,4 +1,5 @@
 import { type Wallet, xrpToDrops, isValidClassicAddress } from "xrpl"
+import { createHash, randomBytes } from "node:crypto"
 import { getClient, getExplorerUrl } from "./client.js"
 import type { VestingEscrow } from "./types.js"
 
@@ -56,7 +57,10 @@ export async function createVestingEscrow(
     )
   }
 
-  const escrowSequence = (result.result.tx_json as { Sequence?: number }).Sequence ?? 0
+  const escrowSequence = (result.result.tx_json as { Sequence?: number }).Sequence
+  if (escrowSequence === undefined) {
+    throw new Error("Escrow creation succeeded but Sequence not found in tx_json")
+  }
 
   console.log(`✅ Vesting escrow created`)
   console.log(`   Sequence: ${escrowSequence}`)
@@ -181,12 +185,24 @@ export async function getActiveEscrows(address: string): Promise<
 }
 
 export function generateCryptoCondition(): { condition: string; fulfillment: string } {
-  const preimage = crypto.getRandomValues(new Uint8Array(32))
-  const preimageHex = Buffer.from(preimage).toString("hex").toUpperCase()
+  // Generate proper PREIMAGE-SHA-256 crypto-conditions (RFC)
+  // Fulfillment: DER-encoded preimage (A0 22 80 20 <32-byte-preimage>)
+  // Condition: DER-encoded SHA-256(fulfillment) + max fulfillment length
+  const preimage = randomBytes(32)
+  const preimageHex = preimage.toString("hex").toUpperCase()
 
+  // Fulfillment DER: tag A0, length 22 (34), tag 80, length 20 (32), preimage
   const fulfillment = `A0228020${preimageHex}`
-  const conditionHash = preimageHex
-  const condition = `A0258020${conditionHash}0102${(32).toString(16).padStart(4, "0")}`
+
+  // Condition: SHA-256 of the fulfillment bytes
+  const fulfillmentBytes = Buffer.from(fulfillment, "hex")
+  const conditionHash = createHash("sha256")
+    .update(fulfillmentBytes)
+    .digest("hex")
+    .toUpperCase()
+
+  // Condition DER: tag A0, length 25 (37), tag 80, length 20 (32), hash, tag 81, length 01, value 20 (32)
+  const condition = `A0258020${conditionHash}810120`
 
   return { condition, fulfillment }
 }

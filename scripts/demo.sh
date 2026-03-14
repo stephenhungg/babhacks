@@ -1,12 +1,12 @@
 #!/bin/bash
-# PublicRound Demo Script
+# Lapis Demo Script
 # Usage: ./scripts/demo.sh [github_url]
 
 API="http://localhost:3001"
 REPO_URL="${1:-https://github.com/vercel/next.js}"
 
 echo "============================================"
-echo "  PublicRound AI Agent Demo"
+echo "  Lapis AI Agent Demo"
 echo "============================================"
 echo ""
 echo "Analyzing: $REPO_URL"

@@ -1,4 +1,4 @@
-// Local prediction market simulation for PublicRound
+// Local prediction market simulation for Lapis
 // Since Polymarket doesn't support programmatic market creation,
 // we run our own simple prediction market for startup valuations.
 

@@ -22,7 +22,7 @@ async function main() {
   const PORT = process.env.PORT || 3001;
 
   app.listen(PORT, () => {
-    console.log(`PublicRound AI Agent running on http://localhost:${PORT}`);
+    console.log(`Lapis AI Agent running on http://localhost:${PORT}`);
     console.log(`\n  Analysis:`);
     console.log(`  POST /analyze             - submit a GitHub repo for analysis`);
     console.log(`  GET  /report/:id/score    - poll analysis status and scores`);
@@ -36,6 +36,10 @@ async function main() {
     console.log(`  POST /monitor/:reportId   - start watching a repo for changes`);
     console.log(`  DELETE /monitor/:reportId - stop watching`);
     console.log(`  GET  /monitor             - list all monitored repos`);
+    console.log(`\n  XRPL Settlement:`);
+    console.log(`  POST /market/:id/settle   - close market & settle on XRPL`);
+    console.log(`  GET  /xrpl/status         - XRPL wallets, balances, settlements`);
+    console.log(`  POST /xrpl/escrow/:id/release - release a vesting escrow`);
     console.log(`\n  GET  /health              - health check`);
 
     if (!process.env.ANTHROPIC_API_KEY) {
@@ -44,6 +48,10 @@ async function main() {
     }
     if (!process.env.GITHUB_TOKEN) {
       console.warn("  WARNING: GITHUB_TOKEN not set. GitHub API rate limits will be low.\n");
+    }
+    if (!process.env.FOUNDER_SEED || !process.env.AGENT_SEED) {
+      console.warn("  WARNING: FOUNDER_SEED and/or AGENT_SEED not set. XRPL settlement will not work.");
+      console.warn("  Generate testnet wallets and add seeds to .env\n");
     }
   });
 }

@@ -1,5 +1,5 @@
 import { Octokit } from "@octokit/rest";
-import type { GitHubData, CommitSummary, ContributorSummary } from "@publicround/shared";
+import type { GitHubData, CommitSummary, ContributorSummary } from "@lapis/shared";
 
 const octokit = new Octokit({
   auth: process.env.GITHUB_TOKEN || undefined,

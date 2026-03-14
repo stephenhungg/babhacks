@@ -24,7 +24,7 @@ export async function createX402Middleware(): Promise<ExpressMiddleware> {
           price: "$0.05",
           network: "base-sepolia",
           config: {
-            description: "Access full PublicRound startup report card",
+            description: "Access full Lapis startup report card",
           },
         },
       },

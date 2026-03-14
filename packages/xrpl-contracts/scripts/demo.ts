@@ -1,5 +1,5 @@
 /**
- * PublicRound — Live Stage Demo
+ * Lapis — Live Stage Demo
  *
  * Flow:
  *   1. Load funded wallets from .env
@@ -31,7 +31,7 @@ function separator(label: string) {
 }
 
 async function main() {
-  console.log("🎬 PublicRound — Live Demo Starting\n")
+  console.log("🎬 Lapis — Live Demo Starting\n")
 
   const founder = walletFromEnv("FOUNDER")
   const investor1 = walletFromEnv("INVESTOR1")
@@ -58,7 +58,7 @@ async function main() {
     destination: founder.address,
     amountXRP: "0.05",
     destinationTag: 1001,
-    memo: "PublicRound:report_access:startup_xyz",
+    memo: "Lapis:report_access:startup_xyz",
   })
 
   const verification = await verifyPayment(

@@ -1,7 +1,7 @@
-import type { GitHubData, SocialData } from "@publicround/shared";
+import type { GitHubData, SocialData } from "@lapis/shared";
 import type { IndustrySentiment } from "../polymarket/client.js";
 
-export const SYSTEM_PROMPT = `You are a startup technical due-diligence analyst for PublicRound, a platform that creates transparent startup valuations.
+export const SYSTEM_PROMPT = `You are a startup technical due-diligence analyst for Lapis, a platform that creates transparent startup valuations.
 
 Your job is to analyze raw data from a startup's GitHub repository, social presence, and real-world market sentiment from Polymarket prediction markets, then produce a structured report card.
 

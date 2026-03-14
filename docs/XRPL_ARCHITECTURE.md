@@ -1,8 +1,8 @@
-# PublicRound — XRPL Architecture
+# Lapis — XRPL Architecture
 
 ## Overview
 
-XRPL provides the equity and payment settlement layer for PublicRound. Every financial primitive in the platform maps to a native XRPL transaction type — no custom smart contract language, no gas wars, 3–5 second finality on testnet.
+XRPL provides the equity and payment settlement layer for Lapis. Every financial primitive in the platform maps to a native XRPL transaction type — no custom smart contract language, no gas wars, 3–5 second finality on testnet.
 
 ---
 

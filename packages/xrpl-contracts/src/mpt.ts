@@ -37,7 +37,7 @@ export async function issueEquityToken(
         company: round.companyName,
         valuationCapXRP: round.valuationCapXRP,
         type: "equity_safe",
-        platform: "PublicRound",
+        platform: "Lapis",
       })
     ).toString("hex"),
   }

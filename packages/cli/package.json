@@ -1,0 +1,20 @@
+{
+  "name": "@lapis/cli",
+  "version": "0.0.1",
+  "type": "module",
+  "bin": {
+    "lapis": "./src/index.ts"
+  },
+  "scripts": {
+    "dev": "tsx src/index.ts",
+    "build": "tsc",
+    "start": "node dist/src/index.js"
+  },
+  "dependencies": {
+    "@lapis/shared": "*"
+  },
+  "devDependencies": {
+    "tsx": "^4.19.0",
+    "typescript": "^5.7.0"
+  }
+}

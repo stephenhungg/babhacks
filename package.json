@@ -1,5 +1,5 @@
 {
-  "name": "publicround",
+  "name": "lapis",
   "private": true,
   "workspaces": [
     "packages/*",
@@ -7,6 +7,7 @@
   ],
   "scripts": {
     "dev:agent": "npm run dev --workspace=packages/ai-agent",
-    "build": "npm run build --workspace=packages/shared && npm run build --workspace=packages/ai-agent"
+    "build": "npm run build --workspace=packages/shared && npm run build --workspace=packages/xrpl-contracts && npm run build --workspace=packages/ai-agent",
+    "lapis": "tsx packages/cli/src/index.ts"
   }
 }

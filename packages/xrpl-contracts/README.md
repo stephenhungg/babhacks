@@ -1,6 +1,6 @@
-# @babhacks/xrpl-contracts
+# @lapis/xrpl-contracts
 
-XRPL blockchain logic for PublicRound. Handles equity token issuance (MPT), vesting escrow, and payment verification.
+XRPL blockchain logic for Lapis. Handles equity token issuance (MPT), vesting escrow, and payment verification.
 
 ## Setup
 

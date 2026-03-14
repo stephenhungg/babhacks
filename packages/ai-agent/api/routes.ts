@@ -1,5 +1,11 @@
+import crypto from "node:crypto";
 import { Router } from "express";
-import type { AnalyzeRequest, ApiResponse, ReportCard } from "@publicround/shared";
+import type { AnalyzeRequest, ApiResponse, ReportCard } from "@lapis/shared";
+import {
+  walletFromEnv,
+  getBalance,
+  releaseEscrow,
+} from "@lapis/xrpl-contracts";
 import { createReport, getReport } from "../src/store.js";
 import { runAnalysisPipeline } from "../src/pipeline.js";
 import {
@@ -17,6 +23,19 @@ import {
   estimateValuation,
 } from "../src/polymarket/index.js";
 import type { ValuationMarket } from "../src/polymarket/index.js";
+import {
+  settleMarket,
+  getSettlement,
+  getAllSettlements,
+  getFulfillment,
+} from "../src/xrpl/index.js";
+import type { SettlementResult } from "../src/xrpl/index.js";
+import { getRlusdBalance } from "../src/xrpl/rlusd.js";
+
+// sanitize settlement data for API responses (fulfillments are stored separately, not in the type)
+function sanitizeSettlement(s: SettlementResult): SettlementResult {
+  return { ...s };
+}
 
 export const router = Router();
 
@@ -254,7 +273,7 @@ router.post("/monitor/:reportId", (req, res) => {
     return;
   }
 
-  const intervalMs = req.body?.intervalMs ?? 30_000;
+  const intervalMs = Math.max(10_000, req.body?.intervalMs ?? 30_000);
   const entry = startMonitoring(report.id, report.githubUrl, intervalMs);
 
   const response: ApiResponse<{
@@ -311,6 +330,233 @@ router.get("/monitor/:reportId", (req, res) => {
     data: { monitoring: isMonitoring(req.params.reportId) },
   };
   res.json(response);
+});
+
+// ==========================================
+// XRPL SETTLEMENT ROUTES
+// ==========================================
+
+// POST /market/:marketId/settle - close market AND settle on XRPL
+// This is the money route: issues MPT, creates escrows, pays RLUSD fee
+router.post("/market/:marketId/settle", async (req, res) => {
+  // idempotency: return existing settlement if already settled
+  const existingSettlement = getSettlement(req.params.marketId);
+  if (existingSettlement) {
+    res.json({ success: true, data: sanitizeSettlement(existingSettlement) });
+    return;
+  }
+
+  const market = getMarketById(req.params.marketId);
+
+  if (!market) {
+    const response: ApiResponse<never> = {
+      success: false,
+      error: "Market not found",
+    };
+    res.status(404).json(response);
+    return;
+  }
+
+  // close the market if still open
+  if (market.status === "open") {
+    closeMarket(market.id);
+  }
+
+  if (!market.consensusValuation) {
+    const response: ApiResponse<never> = {
+      success: false,
+      error: "Market has no consensus valuation (no bets placed)",
+    };
+    res.status(400).json(response);
+    return;
+  }
+
+  const report = getReport(market.reportId);
+  if (!report || report.status !== "complete" || !report.scores) {
+    const response: ApiResponse<never> = {
+      success: false,
+      error: "Associated report is not complete",
+    };
+    res.status(400).json(response);
+    return;
+  }
+
+  // check env vars
+  if (!process.env.FOUNDER_SEED || !process.env.AGENT_SEED) {
+    const response: ApiResponse<never> = {
+      success: false,
+      error: "FOUNDER_SEED and AGENT_SEED must be set in .env for XRPL settlement",
+    };
+    res.status(500).json(response);
+    return;
+  }
+
+  try {
+    // ignore user-supplied config to prevent abuse (division by zero, wallet drain, etc)
+    const settlement = await settleMarket(market, report);
+    res.json({ success: true, data: sanitizeSettlement(settlement) });
+  } catch (err) {
+    const response: ApiResponse<never> = {
+      success: false,
+      error: `Settlement failed: ${(err as Error).message}`,
+    };
+    res.status(500).json(response);
+  }
+});
+
+// GET /xrpl/status - XRPL connection status, wallets, settlements
+router.get("/xrpl/status", async (_req, res) => {
+  try {
+    const hasFounder = !!process.env.FOUNDER_SEED;
+    const hasAgent = !!process.env.AGENT_SEED;
+
+    let wallets: Record<string, unknown> = {};
+
+    if (hasFounder) {
+      try {
+        const fw = walletFromEnv("FOUNDER");
+        const balXRP = await getBalance(fw.address);
+        const balRLUSD = await getRlusdBalance(fw.address).catch(() => "0");
+        wallets = {
+          ...wallets,
+          founder: { address: fw.address, balanceXRP: balXRP, balanceRLUSD: balRLUSD },
+        };
+      } catch {
+        wallets = { ...wallets, founder: { error: "failed to load" } };
+      }
+    }
+
+    if (hasAgent) {
+      try {
+        const aw = walletFromEnv("AGENT");
+        const balXRP = await getBalance(aw.address);
+        const balRLUSD = await getRlusdBalance(aw.address).catch(() => "0");
+        wallets = {
+          ...wallets,
+          agent: { address: aw.address, balanceXRP: balXRP, balanceRLUSD: balRLUSD },
+        };
+      } catch {
+        wallets = { ...wallets, agent: { error: "failed to load" } };
+      }
+    }
+
+    const settlements = getAllSettlements();
+
+    const response: ApiResponse<{
+      configured: boolean;
+      network: string;
+      wallets: Record<string, unknown>;
+      settlementCount: number;
+      settlements: SettlementResult[];
+    }> = {
+      success: true,
+      data: {
+        configured: hasFounder && hasAgent,
+        network: process.env.XRPL_NETWORK || "testnet",
+        wallets,
+        settlementCount: settlements.length,
+        settlements: settlements.map(sanitizeSettlement),
+      },
+    };
+    res.json(response);
+  } catch (err) {
+    const response: ApiResponse<never> = {
+      success: false,
+      error: `XRPL status check failed: ${(err as Error).message}`,
+    };
+    res.status(500).json(response);
+  }
+});
+
+// POST /xrpl/escrow/:marketId/release - agent releases a participant's escrow
+router.post("/xrpl/escrow/:marketId/release", async (req, res) => {
+  // auth check: require AGENT_API_SECRET as bearer token (NOT the wallet seed)
+  const apiSecret = process.env.AGENT_API_SECRET;
+  const authHeader = req.headers.authorization;
+  if (!apiSecret) {
+    res.status(500).json({ success: false, error: "AGENT_API_SECRET not configured" });
+    return;
+  }
+  const provided = authHeader?.replace("Bearer ", "") ?? "";
+  const expected = apiSecret;
+  const providedBuf = Buffer.from(provided);
+  const expectedBuf = Buffer.from(expected);
+  if (providedBuf.length !== expectedBuf.length || !crypto.timingSafeEqual(providedBuf, expectedBuf)) {
+    res.status(401).json({ success: false, error: "Unauthorized" });
+    return;
+  }
+
+  const { userId } = req.body as { userId: string };
+
+  if (!userId) {
+    const response: ApiResponse<never> = {
+      success: false,
+      error: "userId is required",
+    };
+    res.status(400).json(response);
+    return;
+  }
+
+  const settlement = getSettlement(req.params.marketId);
+  if (!settlement) {
+    const response: ApiResponse<never> = {
+      success: false,
+      error: "Settlement not found for this market",
+    };
+    res.status(404).json(response);
+    return;
+  }
+
+  const participant = settlement.escrows.find((e) => e.userId === userId);
+  if (!participant) {
+    const response: ApiResponse<never> = {
+      success: false,
+      error: `No escrow found for user: ${userId}`,
+    };
+    res.status(404).json(response);
+    return;
+  }
+
+  try {
+    const agentWallet = walletFromEnv("AGENT");
+    const fulfillment = getFulfillment(
+      participant.escrow.ownerAddress,
+      participant.escrow.escrowSequence
+    );
+
+    if (!fulfillment) {
+      const response: ApiResponse<never> = {
+        success: false,
+        error: "Fulfillment not found (cannot release without crypto-condition fulfillment)",
+      };
+      res.status(500).json(response);
+      return;
+    }
+
+    const txHash = await releaseEscrow(agentWallet, participant.escrow, fulfillment);
+
+    const response: ApiResponse<{
+      txHash: string;
+      userId: string;
+      sharesReleased: string;
+      beneficiary: string;
+    }> = {
+      success: true,
+      data: {
+        txHash,
+        userId,
+        sharesReleased: participant.sharesAllocated,
+        beneficiary: participant.xrplAddress,
+      },
+    };
+    res.json(response);
+  } catch (err) {
+    const response: ApiResponse<never> = {
+      success: false,
+      error: `Escrow release failed: ${(err as Error).message}`,
+    };
+    res.status(500).json(response);
+  }
 });
 
 // ==========================================
