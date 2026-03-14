@@ -5,6 +5,8 @@ import Link from "next/link";
 import { useSearchParams } from "next/navigation";
 import { ArrowRight, Check, Github, Twitter, Wallet, AlertTriangle } from "lucide-react";
 import { DashboardNav } from "@/components/dashboard/nav";
+import { WalletModal } from "@/components/wallet-modal";
+import { useWallet } from "@/hooks/use-wallet";
 import * as api from "@/lib/api";
 
 const ANALYSIS_STEPS = [
@@ -35,7 +37,7 @@ type Stage = "form" | "analyzing" | "done";
 
 function ListPageInner() {
   const searchParams = useSearchParams();
-  const [walletConnected, setWalletConnected] = useState(false);
+  const wallet = useWallet();
   const [github, setGithub] = useState(searchParams.get("github") ?? "");
   const [twitter, setTwitter] = useState("");
   const [description, setDescription] = useState("");
@@ -69,7 +71,7 @@ function ListPageInner() {
 
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
-    if (!walletConnected || !github.trim()) return;
+    if (!wallet.connected || !github.trim()) return;
 
     setStage("analyzing");
     setAnalyzeError(null);
@@ -162,27 +164,34 @@ function ListPageInner() {
               <div className="border border-foreground/10 p-5">
                 <div className="flex items-center justify-between mb-1">
                   <label className="text-sm font-semibold">XRPL Wallet</label>
-                  {walletConnected && (
+                  {wallet.connected && (
                     <span className="text-xs text-green-600 font-mono flex items-center gap-1">
-                      <Check className="w-3 h-3" /> Connected
+                      <Check className="w-3 h-3" /> {wallet.shortAddress}
                     </span>
                   )}
                 </div>
                 <p className="text-xs text-muted-foreground mb-3">
                   Required to receive MPT tokens when your round closes.
                 </p>
-                <button
-                  type="button"
-                  onClick={() => setWalletConnected(!walletConnected)}
-                  className={`flex items-center gap-2 px-4 py-2 text-sm border transition-all ${
-                    walletConnected
-                      ? "border-green-500/30 bg-green-50 text-green-700"
-                      : "border-foreground/20 hover:bg-foreground/5"
-                  }`}
-                >
-                  <Wallet className="w-4 h-4" />
-                  {walletConnected ? "Wallet connected" : "Connect XRPL wallet"}
-                </button>
+                {wallet.connected ? (
+                  <button
+                    type="button"
+                    onClick={wallet.disconnect}
+                    className="flex items-center gap-2 px-4 py-2 text-sm border border-green-500/30 bg-green-50 text-green-700 transition-all"
+                  >
+                    <Wallet className="w-4 h-4" />
+                    {wallet.shortAddress}
+                  </button>
+                ) : (
+                  <button
+                    type="button"
+                    onClick={wallet.connect}
+                    className="flex items-center gap-2 px-4 py-2 text-sm border border-foreground/20 hover:bg-foreground/5 transition-all"
+                  >
+                    <Wallet className="w-4 h-4" />
+                    Connect XRPL wallet
+                  </button>
+                )}
               </div>
 
               {/* GitHub */}
@@ -273,7 +282,7 @@ function ListPageInner() {
 
               <button
                 type="submit"
-                disabled={!walletConnected || !github.trim() || !description.trim()}
+                disabled={!wallet.connected || !github.trim() || !description.trim()}
                 className="w-full py-3.5 bg-foreground text-background font-semibold text-sm hover:bg-foreground/90 transition-all disabled:opacity-40 disabled:cursor-not-allowed flex items-center justify-center gap-2 group"
               >
                 Submit & start AI analysis
@@ -382,6 +391,12 @@ function ListPageInner() {
           </div>
         )}
       </div>
+
+      <WalletModal
+        open={wallet.showModal}
+        onClose={wallet.closeModal}
+        onConfirm={wallet.confirm}
+      />
     </div>
   );
 }

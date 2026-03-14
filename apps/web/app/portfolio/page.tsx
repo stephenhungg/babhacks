@@ -2,29 +2,30 @@
 
 import { useState, useEffect } from "react";
 import Link from "next/link";
-import { Wallet, TrendingUp, TrendingDown, ExternalLink, Shield, Check, Lock, Loader2 } from "lucide-react";
+import { Wallet, TrendingUp, ExternalLink, Shield, Check, Lock, Loader2 } from "lucide-react";
 import { DashboardNav } from "@/components/dashboard/nav";
+import { WalletModal } from "@/components/wallet-modal";
+import { useWallet } from "@/hooks/use-wallet";
 import { getXrplStatus } from "@/lib/api";
 import { fmt, adaptSettlementToMPT } from "@/lib/adapters";
 
 type PortfolioMPT = ReturnType<typeof adaptSettlementToMPT>;
 
 export default function PortfolioPage() {
-  const [connected, setConnected] = useState(false);
+  const wallet = useWallet();
   const [isVisible, setIsVisible] = useState(false);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [mpts, setMpts] = useState<PortfolioMPT[]>([]);
-  const [walletAddress, setWalletAddress] = useState<string | null>(null);
   const [xrplConfigured, setXrplConfigured] = useState<boolean | null>(null);
 
   useEffect(() => {
     setIsVisible(true);
   }, []);
 
-  // Fetch real settlement data when wallet is "connected"
+  // Fetch real settlement data when wallet is connected
   useEffect(() => {
-    if (!connected) return;
+    if (!wallet.connected) return;
 
     let cancelled = false;
     setLoading(true);
@@ -34,18 +35,6 @@ export default function PortfolioPage() {
       .then((status) => {
         if (cancelled) return;
         setXrplConfigured(status.configured);
-        if (!status.configured) {
-          setMpts([]);
-          setWalletAddress(null);
-          return;
-        }
-        // Extract the first valid wallet address to display
-        const walletEntries = Object.values(status.wallets ?? {});
-        const firstValid = walletEntries.find(
-          (w): w is { address: string; balanceXRP: string; balanceRLUSD: string } =>
-            "address" in w
-        );
-        setWalletAddress(firstValid?.address ?? null);
         const adapted = status.settlements.map(adaptSettlementToMPT);
         setMpts(adapted);
       })
@@ -60,7 +49,7 @@ export default function PortfolioPage() {
       });
 
     return () => { cancelled = true; };
-  }, [connected]);
+  }, [wallet.connected]);
 
   const totalTokensHeld = mpts.reduce((a, m) => a + m.tokensHeld, 0);
 
@@ -88,24 +77,26 @@ export default function PortfolioPage() {
             <h1 className="text-3xl font-display tracking-tight mb-2">Portfolio</h1>
             <p className="text-sm text-muted-foreground">Your prediction positions, SAFE MPTs, and investor credentials</p>
           </div>
-          <button
-            onClick={() => setConnected(!connected)}
-            className={`flex items-center gap-2 px-4 py-2 border text-sm font-mono transition-all ${
-              connected
-                ? "border-green-500/30 bg-green-50 text-green-700"
-                : "border-foreground/20 hover:bg-foreground/5"
-            }`}
-          >
-            <Wallet className="w-4 h-4" />
-            {connected
-              ? walletAddress
-                ? `${walletAddress.slice(0, 5)}…${walletAddress.slice(-4)}`
-                : "Connected"
-              : "Connect wallet to view"}
-          </button>
+          {wallet.connected ? (
+            <button
+              onClick={wallet.disconnect}
+              className="flex items-center gap-2 px-4 py-2 border text-sm font-mono transition-all border-green-500/30 bg-green-50 text-green-700"
+            >
+              <Wallet className="w-4 h-4" />
+              {wallet.shortAddress}
+            </button>
+          ) : (
+            <button
+              onClick={wallet.connect}
+              className="flex items-center gap-2 px-4 py-2 border text-sm font-mono transition-all border-foreground/20 hover:bg-foreground/5"
+            >
+              <Wallet className="w-4 h-4" />
+              Connect wallet
+            </button>
+          )}
         </div>
 
-        {!connected ? (
+        {!wallet.connected ? (
           <div className={`border border-dashed border-foreground/20 p-16 text-center transition-all duration-500 delay-100 ${
             isVisible ? "opacity-100 translate-y-0" : "opacity-0 translate-y-4"
           }`}>
@@ -115,7 +106,7 @@ export default function PortfolioPage() {
               View your prediction market positions, SAFE token holdings, P&L, and accredited investor credentials.
             </p>
             <button
-              onClick={() => setConnected(true)}
+              onClick={wallet.connect}
               className="px-8 py-2.5 bg-foreground text-background text-sm font-semibold hover:bg-foreground/90 transition-all"
             >
               Connect XRPL wallet
@@ -153,8 +144,8 @@ export default function PortfolioPage() {
             {/* Summary stats */}
             <div className="grid sm:grid-cols-4 gap-4">
               {[
-                { label: "Total bet value", value: "N/A" },
-                { label: "Unrealized P&L", value: "N/A" },
+                { label: "Wallet", value: wallet.shortAddress ?? "—" },
+                { label: "Network", value: "XRPL Testnet" },
                 { label: "Settlements", value: mpts.length.toString() },
                 { label: "SAFE tokens held", value: totalTokensHeld.toString() },
               ].map((stat) => (
@@ -257,7 +248,7 @@ export default function PortfolioPage() {
                     <Check className="w-4 h-4 text-green-500 ml-auto" />
                   </div>
                   <p className="text-xs text-green-600">
-                    Wallet verified via XRPL · KYC-lite check passed · Active since Jan 2025
+                    Wallet verified via XRPL · KYC-lite check passed
                   </p>
                 </div>
                 <div className="border border-foreground/20 p-4 hover:border-foreground/30 transition-all">
@@ -278,6 +269,12 @@ export default function PortfolioPage() {
           </div>
         )}
       </div>
+
+      <WalletModal
+        open={wallet.showModal}
+        onClose={wallet.closeModal}
+        onConfirm={wallet.confirm}
+      />
     </div>
   );
 }
