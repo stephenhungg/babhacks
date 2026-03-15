@@ -738,9 +738,9 @@ export default function MarketPage({ params }: { params: Promise<{ id: string }>
                 </div>
               )}
               {/* Show user's equity position if they participated */}
-              {settlement.escrows.length > 0 && (
+              {settlement?.escrows && settlement.escrows.length > 0 && (
                 <div className="mb-4 border border-green-500/30 bg-green-500/5 p-4">
-                  <p className="text-xs font-semibold text-green-600 mb-2">YOUR EQUITY POSITIONS</p>
+                  <p className="text-xs font-semibold text-green-600 mb-2">EQUITY POSITIONS</p>
                   {settlement.escrows.map((escrow, i) => (
                     <div key={i} className="flex justify-between items-center text-xs py-1.5 border-b border-foreground/5 last:border-0">
                       <div>
@@ -759,8 +759,8 @@ export default function MarketPage({ params }: { params: Promise<{ id: string }>
                   ))}
                 </div>
               )}
-              <div className="px-8 py-3 text-sm font-bold bg-green-500 text-white text-center">
-                Equity issued on XRPL
+              <div className={`px-8 py-3 text-sm font-bold text-center ${settlement ? "bg-green-500 text-white" : "bg-foreground/20 text-muted-foreground"}`}>
+                {settlement ? "Equity issued on XRPL" : "Market closed — settle to issue equity"}
               </div>
             </>
           ) : (
