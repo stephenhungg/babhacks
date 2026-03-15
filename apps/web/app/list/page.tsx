@@ -43,8 +43,7 @@ function ListPageInner() {
   const [tokenAddress, setTokenAddress] = useState("");
   const [tokenChain, setTokenChain] = useState("");
   const [showTokenFields, setShowTokenFields] = useState(false);
-  const [description, setDescription] = useState("");
-  const [equity, setEquity] = useState("8");
+  const [description, setDescription] = useState(""); // displayed in confirmation, not sent to backend
   const [stage, setStage] = useState<Stage>("form");
   const [completedSteps, setCompletedSteps] = useState<number>(0);
   const [isVisible, setIsVisible] = useState(false);
@@ -286,44 +285,17 @@ function ListPageInner() {
               {/* Description */}
               <div>
                 <label className="text-sm font-semibold block mb-1">
-                  What does your company do? <span className="text-red-500">*</span>
+                  What does your company do?
                 </label>
                 <p className="text-xs text-muted-foreground mb-2">
-                  2–3 sentences. Be specific — vague descriptions score lower.
+                  Optional — helps the AI understand context beyond what it finds in the repo.
                 </p>
                 <textarea
                   className="w-full border border-foreground/20 bg-background px-4 py-2.5 text-sm focus:outline-none focus:border-foreground/50 transition placeholder-muted-foreground resize-none h-24"
                   placeholder="We build X for Y. Our main product does Z..."
                   value={description}
                   onChange={(e) => setDescription(e.target.value)}
-                  required
                 />
-              </div>
-
-              {/* Equity */}
-              <div>
-                <label className="text-sm font-semibold block mb-1">
-                  Equity offered (%)
-                </label>
-                <p className="text-xs text-muted-foreground mb-2">
-                  Percentage of company offered in this SAFE round. Typically 5–15%.
-                </p>
-                <div className="flex items-center gap-4">
-                  <input
-                    type="range"
-                    min="1"
-                    max="20"
-                    step="0.5"
-                    value={equity}
-                    onChange={(e) => setEquity(e.target.value)}
-                    className="flex-1 cursor-pointer"
-                  />
-                  <span className="font-mono font-bold text-lg w-16 text-right">{equity}%</span>
-                </div>
-                <div className="flex justify-between text-xs text-muted-foreground mt-1">
-                  <span>1%</span>
-                  <span>20%</span>
-                </div>
               </div>
 
               {/* Warning */}
@@ -337,7 +309,7 @@ function ListPageInner() {
 
               <button
                 type="submit"
-                disabled={!wallet.connected || !github.trim() || !description.trim()}
+                disabled={!wallet.connected || !github.trim()}
                 className="w-full py-3.5 bg-foreground text-background font-semibold text-sm hover:bg-foreground/90 transition-all disabled:opacity-40 disabled:cursor-not-allowed flex items-center justify-center gap-2 group"
               >
                 Submit & start AI analysis
@@ -418,7 +390,6 @@ function ListPageInner() {
                 { label: "Traction", value: scores ? String(scores.traction) : "—" },
                 { label: "Social", value: scores ? String(scores.socialPresence) : "—" },
                 { label: "Market opens", value: "Now · 72h window" },
-                { label: "Equity offered", value: `${equity}%` },
               ].map((row) => (
                 <div key={row.label} className={`flex items-center justify-between px-5 py-3 ${row.highlight ? "bg-foreground/[0.03]" : ""}`}>
                   <span className="text-sm text-muted-foreground">{row.label}</span>

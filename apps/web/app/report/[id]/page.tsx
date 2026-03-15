@@ -20,16 +20,6 @@ import type { ReportScores } from "@/lib/api-types";
 import { adaptReportToStartup } from "@/lib/adapters";
 
 const PIE_COLORS = ["#1a1a1a", "#555", "#999", "#ccc"];
-const SOCIAL_DATA = [
-  { month: "Aug", followers: 340, mentions: 18 },
-  { month: "Sep", followers: 520, mentions: 32 },
-  { month: "Oct", followers: 710, mentions: 44 },
-  { month: "Nov", followers: 980, mentions: 71 },
-  { month: "Dec", followers: 1230, mentions: 58 },
-  { month: "Jan", followers: 1580, mentions: 92 },
-  { month: "Feb", followers: 2010, mentions: 115 },
-  { month: "Mar", followers: 2480, mentions: 138 },
-];
 
 export default function ReportPage({ params }: { params: Promise<{ id: string }> }) {
   const { id } = use(params);
@@ -534,17 +524,27 @@ export default function ReportPage({ params }: { params: Promise<{ id: string }>
 
             {/* Social metrics */}
             <div className="border border-foreground/10 p-5">
-              <h2 className="text-sm font-semibold mb-4">Social Metrics Over Time</h2>
-              <ResponsiveContainer width="100%" height={160}>
-                <LineChart data={SOCIAL_DATA} margin={{ top: 4, right: 4, bottom: 0, left: -20 }}>
-                  <XAxis dataKey="month" tick={{ fontSize: 11 }} />
-                  <YAxis yAxisId="left" tick={{ fontSize: 11 }} />
-                  <YAxis yAxisId="right" orientation="right" tick={{ fontSize: 11 }} />
-                  <Tooltip contentStyle={{ fontSize: 11 }} />
-                  <Line yAxisId="left" type="monotone" dataKey="followers" stroke="#1a1a1a" strokeWidth={1.5} dot={false} name="Followers" />
-                  <Line yAxisId="right" type="monotone" dataKey="mentions" stroke="#888" strokeWidth={1.5} dot={false} name="Mentions" />
-                </LineChart>
-              </ResponsiveContainer>
+              <h2 className="text-sm font-semibold mb-4">Social Presence</h2>
+              {report.socialData ? (
+                <div className="grid sm:grid-cols-3 gap-3">
+                  <div className="border border-foreground/10 p-3">
+                    <p className="text-xs text-muted-foreground mb-0.5">Platform</p>
+                    <p className="text-sm font-mono font-bold">{report.socialData.platform}</p>
+                  </div>
+                  <div className="border border-foreground/10 p-3">
+                    <p className="text-xs text-muted-foreground mb-0.5">Followers</p>
+                    <p className="text-sm font-mono font-bold">{report.socialData.followers.toLocaleString()}</p>
+                  </div>
+                  <div className="border border-foreground/10 p-3">
+                    <p className="text-xs text-muted-foreground mb-0.5">Avg. engagement</p>
+                    <p className="text-sm font-mono font-bold">{report.socialData.avgEngagement.toFixed(1)}%</p>
+                  </div>
+                </div>
+              ) : (
+                <p className="text-xs text-muted-foreground">
+                  No social data available. Add a Twitter handle when listing to enable social analysis.
+                </p>
+              )}
             </div>
 
             {/* Adversarial audit full findings */}
