@@ -132,8 +132,11 @@ export function HeroSection() {
               size="lg"
               variant="outline"
               className="h-14 px-8 text-base rounded-full border-foreground/20 hover:bg-foreground/5"
+              asChild
             >
-              Watch demo
+              <a href="https://youtu.be/TazQl0Ijt5Y" target="_blank" rel="noopener noreferrer">
+                Watch demo
+              </a>
             </Button>
           </div>
         </div>
