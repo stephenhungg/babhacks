@@ -173,6 +173,15 @@ export function stopMonitoring(reportId: string): boolean {
   return true;
 }
 
+export function stopAllMonitors(): void {
+  for (const [reportId, entry] of monitored) {
+    if (entry.timer) clearInterval(entry.timer);
+  }
+  const count = monitored.size;
+  monitored.clear();
+  if (count > 0) console.log(`[monitor] stopped all ${count} monitors`);
+}
+
 export function getMonitoredRepos(): Array<{
   reportId: string;
   githubUrl: string;

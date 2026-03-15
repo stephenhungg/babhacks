@@ -1,6 +1,7 @@
 import crypto from "node:crypto";
 import { Router } from "express";
 import type { AnalyzeRequest, ApiResponse, ReportCard } from "@lapis/shared";
+import { logger } from "../src/logger.js";
 import {
   walletFromEnv,
   getBalance,
@@ -89,7 +90,13 @@ router.post("/analyze", async (req, res) => {
   const report = await createReport(githubUrl);
 
   // fire and forget - don't await
-  runAnalysisPipeline(report.id, githubUrl, twitterHandle, tokenAddress, tokenChain);
+  runAnalysisPipeline(report.id, githubUrl, twitterHandle, tokenAddress, tokenChain)
+    .catch((err) => {
+      logger.error("Analysis pipeline failed", {
+        reportId: report.id,
+        error: err instanceof Error ? err.message : String(err),
+      });
+    });
 
   const response: ApiResponse<{ id: string; status: string }> = {
     success: true,
@@ -844,6 +851,33 @@ router.get("/safe/:marketId", async (req, res) => {
 // HEALTH
 // ==========================================
 
-router.get("/health", (_req, res) => {
-  res.json({ status: "ok", timestamp: new Date().toISOString() });
+router.get("/health", async (_req, res) => {
+  const checks: Record<string, string> = {};
+
+  // check redis
+  try {
+    const { getRedis } = await import("../src/redis.js");
+    const redis = getRedis();
+    if (redis) {
+      await redis.ping();
+      checks.redis = "ok";
+    } else {
+      checks.redis = "in-memory (no REDIS_URL)";
+    }
+  } catch {
+    checks.redis = "error";
+  }
+
+  // check XRPL config
+  checks.xrpl = process.env.FOUNDER_SEED && process.env.AGENT_SEED ? "configured" : "not configured";
+  checks.base = process.env.BASE_PRIVATE_KEY ? "configured" : "not configured";
+  checks.ai = process.env.ANTHROPIC_API_KEY ? "configured" : "not configured";
+
+  const healthy = checks.redis !== "error" && checks.ai === "configured";
+
+  res.status(healthy ? 200 : 503).json({
+    status: healthy ? "ok" : "degraded",
+    timestamp: new Date().toISOString(),
+    checks,
+  });
 });

@@ -19,7 +19,34 @@ import { securityHeaders } from "./middleware/security-headers.js";
 import { router } from "../api/routes.js";
 import { getRedis } from "./redis.js";
 
+function validateEnv() {
+  const isProd = process.env.NODE_ENV === "production";
+  const required = ["ANTHROPIC_API_KEY", "GITHUB_TOKEN"];
+  const missing = required.filter((k) => !process.env[k]);
+
+  if (missing.length > 0) {
+    const msg = `Missing required env vars: ${missing.join(", ")}`;
+    if (isProd) {
+      logger.error(msg);
+      process.exit(1);
+    } else {
+      logger.warn(msg);
+    }
+  }
+
+  if (isProd && !process.env.REDIS_URL) {
+    logger.error("REDIS_URL is required in production (in-memory storage will lose data on restart)");
+    process.exit(1);
+  }
+
+  if (isProd && !process.env.ALLOWED_ORIGINS) {
+    logger.warn("ALLOWED_ORIGINS not set in production -- CORS is wide open");
+  }
+}
+
 async function main() {
+  validateEnv();
+
   // initialize redis connection (falls back to in-memory if not configured)
   const redis = getRedis();
   if (redis) {
@@ -31,7 +58,20 @@ async function main() {
   const app = express();
 
   // --- Core middleware ---
-  app.use(cors());
+  const allowedOrigins = process.env.ALLOWED_ORIGINS
+    ? process.env.ALLOWED_ORIGINS.split(",").map((o) => o.trim())
+    : undefined; // undefined = allow all (dev mode)
+
+  app.use(
+    cors(
+      allowedOrigins
+        ? {
+            origin: allowedOrigins,
+            credentials: true,
+          }
+        : undefined
+    )
+  );
   app.use(securityHeaders);
   app.use(express.json({ limit: "1mb" })); // prevent large payload abuse
   app.use(requestLogger);
@@ -81,43 +121,41 @@ async function main() {
   const PORT = process.env.PORT || 3001;
 
   const server = app.listen(PORT, () => {
-    logger.info(`Lapis AI Agent running on http://localhost:${PORT}`);
-    console.log(`\n  Analysis:`);
-    console.log(`  POST /analyze             - submit a GitHub repo for analysis`);
-    console.log(`  GET  /report/:id/score    - poll analysis status and scores`);
-    console.log(`  GET  /report/:id          - full report card`);
-    console.log(`\n  Prediction Market:`);
-    console.log(`  POST /market/:reportId    - open market for a completed report`);
-    console.log(`  POST /market/:id/bet      - place a valuation bet`);
-    console.log(`  POST /market/:id/close    - close market, finalize valuation`);
-    console.log(`  GET  /market/:id          - get market data`);
-    console.log(`\n  Continuous Monitoring (Agentic Loop):`);
-    console.log(`  POST /monitor/:reportId   - start watching a repo for changes`);
-    console.log(`  DELETE /monitor/:reportId - stop watching`);
-    console.log(`  GET  /monitor             - list all monitored repos`);
-    console.log(`\n  XRPL Settlement:`);
-    console.log(`  POST /market/:id/settle   - close market & settle on XRPL`);
-    console.log(`  GET  /xrpl/status         - XRPL wallets, balances, settlements`);
-    console.log(`  POST /xrpl/escrow/:id/release - release a vesting escrow`);
-    console.log(`\n  GET  /health              - health check`);
+    logger.info(`Lapis AI Agent running on port ${PORT}`, {
+      port: PORT,
+      env: process.env.NODE_ENV || "development",
+      redis: !!redis,
+      cors: allowedOrigins ? allowedOrigins.join(", ") : "open",
+    });
 
-    if (!process.env.ANTHROPIC_API_KEY) {
-      logger.warn("ANTHROPIC_API_KEY not set. Analysis will fail.");
-    }
-    if (!process.env.GITHUB_TOKEN) {
-      logger.warn("GITHUB_TOKEN not set. GitHub API rate limits will be low.");
-    }
     if (!process.env.FOUNDER_SEED || !process.env.AGENT_SEED) {
-      logger.warn("FOUNDER_SEED and/or AGENT_SEED not set. XRPL settlement will not work.");
+      logger.warn("FOUNDER_SEED and/or AGENT_SEED not set -- XRPL settlement disabled");
+    }
+    if (!process.env.BASE_PRIVATE_KEY) {
+      logger.warn("BASE_PRIVATE_KEY not set -- SAFE deployment on Base disabled");
+    }
+    if (!process.env.XAI_API_KEY) {
+      logger.warn("XAI_API_KEY not set -- social scraper disabled");
     }
   });
 
-  // graceful shutdown: close server + disconnect XRPL
+  // graceful shutdown: stop monitors, close server, disconnect XRPL
   const shutdown = async (signal: string) => {
     logger.info(`${signal} received, shutting down gracefully...`);
+
+    // stop all background monitors
+    try {
+      const { stopAllMonitors } = await import("./monitor.js");
+      stopAllMonitors();
+      logger.info("Background monitors stopped");
+    } catch {
+      // monitors may not have been started
+    }
+
     server.close(() => {
       logger.info("HTTP server closed");
     });
+
     try {
       const { disconnect } = await import("@lapis/xrpl-contracts");
       await disconnect();
